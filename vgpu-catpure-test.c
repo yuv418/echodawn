@@ -51,8 +51,8 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	for (int i = 0; i < 1080; ++i) { // each row
-		for (int j = 0; j < 1920; ++j) { // each pix per roww
+	for (int i = 1080; i < 2160; ++i) { // each row
+		for (int j = 1920; j < 3840; ++j) { // each pix per roww
 			// printf("writing pixel (x, y) -> (%d, %d)\n", j, i);
 			pixel pix = surface[(i * 1920) + j];
 			bmp_pixel_init(&img.img_pixels[i][j], pix.r, pix.g, pix.b);
