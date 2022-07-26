@@ -83,7 +83,7 @@ int captureCtxInit(captureCtx_t* ctx) {
 int vgpuFbBgraToYuv(vgpuFbEncoderCtx_t* ctx, uint8_t* fbPointer) {
         int stride[1] = { IMGBUF_WIDTH * 4 }; // for alpha channel
         // printf("beginning sws_scale\n");
-	// printf("ending sws_scale\n");
+	printf("ending sws_scale\n");
         return sws_scale(ctx->swsCtx, (const uint8_t* const*) &fbPointer, stride, 0,
                         IMGBUF_HEIGHT, ctx->picToEncode->data, ctx->picToEncode->linesize);
 
@@ -122,8 +122,8 @@ void saveAvFrame(AVFrame *avFrame, char* filename)
 }
 
 int main(int argc, char **argv) {
-	if (argv[1] == NULL || argv[2] == NULL || argv[3] == NULL) {
-		fprintf(stderr, "usage: ./program [vfio_group_id] [client_ip_port] [srtp_out_params]\n");
+	if (argv[1] == NULL) {
+		fprintf(stderr, "usage: ./program [vfio_group_id]\n");
 		return 1;
 	}
 	/*
@@ -149,20 +149,17 @@ int main(int argc, char **argv) {
 
 	// avformat_alloc_output_context2(&fmtCtx, NULL, NULL, "random.mp4");
 	AVOutputFormat* rtpFmt;
-	char rtpAddress[28]; // maximum ip:port length
-	snprintf(rtpAddress, sizeof(rtpAddress), "srtp://%s/", argv[2]);
-
-	rtpFmt = av_guess_format("rtp", NULL, NULL);
+	/*rtpFmt = av_guess_format("rtp", NULL, NULL);
 	if (!rtpFmt) {
-		fprintf(stderr, "Failed to guess format srtp");
+		fprintf(stderr, "Failed to guess format rtp");
 		return -1;
-	}
-	avformat_alloc_output_context2(&fmtCtx, rtpFmt, rtpFmt->name, rtpAddress);
+	}*/
+	avformat_alloc_output_context2(&fmtCtx, NULL, "rtsp", "rtsp://192.168.1.126:8081/live.sdp");
 	if (!fmtCtx) {
 		fprintf(stderr, "Failed to allocate AVFormatContext\n");
 		return -1;
 	}
-	av_dump_format(fmtCtx, 0, rtpAddress, 1);
+	av_dump_format(fmtCtx, 0, "random.mp4", 1);
 
 	avS = avformat_new_stream(fmtCtx, NULL);
 	if (!avS) {
@@ -221,7 +218,6 @@ int main(int argc, char **argv) {
 		fprintf(stderr, "warning, groupid is zero, which means that you could have provided an invalid groupid\n");
 	}
 
-
 	// This does NOT initialize the framebuffer. That is done by nvidia-vfio-vgpu and QEMU.
 
 	vgpuFbHandle_t vgpuFbHandle; 
@@ -279,12 +275,6 @@ int main(int argc, char **argv) {
 	AVDictionary* opts;
 	opts = NULL;
 
-	// set options 
-	av_dict_set(&opts, "srtp_out_suite", "AES_CM_128_HMAC_SHA1_80", 0);
-
-	char *srtp_out_params;  // already guaranteed this exists
-	srtp_out_params = argv[3];
-	av_dict_set(&opts, "srtp_out_params", srtp_out_params, 0);
 
 	avS->time_base = cdcCtx->time_base;
 	ret = avcodec_parameters_from_context(avS->codecpar, cdcCtx);
@@ -293,14 +283,13 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 			    
-	ret = avio_open2(&fmtCtx->pb, rtpAddress, AVIO_FLAG_WRITE, NULL, &opts);
-	// ret = avio_open(&fmtCtx->pb, "test.mp4", AVIO_FLAG_WRITE);
+	ret = avio_open(&fmtCtx->pb, "random.mp4", AVIO_FLAG_WRITE);
 	if (ret < 0) {
-		fprintf(stderr, "Failed to open the output file for writing: %s\n", av_err2str(ret));
+		fprintf(stderr, "Failed to open the output file for writing\n");
 		return 1;
 	}
 
-	ret = avformat_write_header(fmtCtx, NULL); // The muxer(?) options don't have to be passed here, only to avio_open2
+	ret = avformat_write_header(fmtCtx, &opts); 
 	if (ret < 0) {
 		fprintf(stderr, "Failed to write header to output file\n");
 		return 1;
@@ -310,7 +299,7 @@ int main(int argc, char **argv) {
 	char buf[20000];
 	AVFormatContext *ac[] = { fmtCtx };
 	av_sdp_create(ac, 1, buf, 20000);
-        printf("sdp:\n%s\n", buf); // dump SDP for now
+        printf("sdp:\n%s\n", buf);
 
 	// start the capture thread
 	
@@ -348,7 +337,7 @@ int main(int argc, char **argv) {
 			// return -1;
 			// free(copiedFbPointer);
 			
-			printf("\rencoding frame %d\c", totalFramesEncoded + 1);
+			printf("encoding frame %d\n", totalFramesEncoded + 1);
 			ret = avcodec_send_frame(cdcCtx, vgpuFbEncoderCtx.picToEncode);
 
 			if (ret < 0) {
@@ -358,9 +347,8 @@ int main(int argc, char **argv) {
 
 			while (ret >= 0) {
 				ret = avcodec_receive_packet(cdcCtx, encPkt);
-				// printf("encoding packet with return %d\n", ret);
+				// printf("encoding packet\n");
 				if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-					// fprintf(stderr, "EAGAIN or EOF from avcodec_receive_packet\n");
 					break;
 				} else if (ret < 0) {
 					fprintf(stderr, "Failed to receive AVPacket\n");
