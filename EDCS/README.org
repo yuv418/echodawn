@@ -1,0 +1,11 @@
+#+title: EDCS
+
+Echodawn Control server. Does not compile yet.
+
+* Status
+- [X] Add bindings to EDSS
+- [ ] Add safe bindings to EDSS
+- [ ] Add TLS server
+- [ ] Implement TLS server
+
+Does not compile yet.

@@ -6,7 +6,7 @@
 EDS does not compile yet. It is defined of two components:
 - EDSS (Echodawn Streaming Server), written in C, and supports pluggable "capture" modules known as "capture abstraction libraries," known as CALs.
   It uses the ~libav*~ libraries to encode ~h264~ and stream it over the network using SRTP. The EDSS code is basically done, it just needs to be
-  refactored into a conformant state to the EDSS API.
+  refactored into a conformant state to the EDSS API. EDSS currently compiles, but I'm not sure if works yet (have to interface with EDCS).
 - EDCS (Echodawn Control Server), written in Rust. It calls EDSS to stream, and will talk to the client for things such as authentication,
   connection configuration, and such. This component has not been written yet.
 
