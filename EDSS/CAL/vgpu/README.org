@@ -1,0 +1,25 @@
+#+title: vGPU CAL Plugin
+
+For use a NVIDIA Virtual GPU host. EDS will run on the host and by specifying a vGPU VM, you will be able to remotely view/control it (view for now).
+
+The NVIDIA Virtual GPU has a framebuffer that any userspace application can access and use. Unfortunately, this framebuffer was only designed for configuration/basic tasks (see [[https://youtu.be/Xs0TJU_sIPc?t=2066][this talk from NVIDIA at this timestamp which explains the usecase for this feature]]).
+
+There is an override for this speed, which makes it possible to use this capture at a reasonable speed for fast video streaming (I believe this is unsupported, so use this at your own risk).
+
+~echo "intervaltime=16000" > /sys/bus/mdev/devices/<VGPU_MDEV_UUID>/nvidia/vgpu_params~
+
+You can change the ~intervaltime~ to ~33000~ if you want to run the framebuffer at 30fps.
+
+Furthermore, make sure that your display/optionally ~ramfb~ is enabled in QEMU, otherwise the framebuffer will be disabled. This is the configuration if you run your virtual machines in ~libvirt~.
+
+#+begin_src xml
+  <qemu:override>
+    <qemu:device alias="hostdev0">
+      <qemu:frontend>
+        <qemu:property name="ramfb" type="bool" value="true"/>
+        <qemu:property name="display" type="string" value="on"/>
+        <qemu:property name="driver" type="string" value="vfio-pci-nohotplug"/>
+      </qemu:frontend>
+    </qemu:device>
+  </qemu:override>
+#+end_src
