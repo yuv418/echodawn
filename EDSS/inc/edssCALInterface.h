@@ -2,8 +2,8 @@
 
 #include "../vendor/strmap/strmap.h"
 #include "edssStatus.h"
-#include <libavformat/avformat.h>
 #include <libavutil/pixfmt.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 /** @file

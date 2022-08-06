@@ -8,3 +8,4 @@ main_multithread
 /EDSS/html
 /EDSS/latex
 .ccls-cache
+build/

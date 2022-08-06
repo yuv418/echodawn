@@ -10,7 +10,7 @@ ck = dependency('ck')
 
 strmap = 'vendor/strmap/strmap.c'
 
-library('libedss',
+library('edss',
            'src/edssInterface.c',
            'src/edssCapture.c',
            'src/edssCapture.c',
