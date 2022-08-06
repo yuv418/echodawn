@@ -1,15 +1,27 @@
 #+title: Echodawn
 
+Echodawn is a remote desktop software that utilises SRTP and a plugin-based display capture. Currently, the "remote desktop" part doesn't work (the client is unimplemented) as *the project is a WIP.* Right now, the streaming server is basically functional (minus testing), and is being being integrated into a fairly simple control server.
+
+After this, a simple client will be implemented to call the control server and view the remote screen. Then, the client and control server will gain mouse and keyboard control, and any additional peripherals as needed.
+
+The reason this project is in a shakily-implemented state is because the ~libav~ family of libraries are poorly documented and this project started out more of an experiment to see if I could even figure out how to stream video over the network (you can see this in the commit history). I succeeded at this and managed to get reasonable latency video streaming using ~ffplay~, so now I am converting the "experiment" codebase into a remote desktop software (which was ultimately my goal).
 
 * Echodawn Server (EDS)
 
 EDS does not compile yet. It is defined of two components:
 - EDSS (Echodawn Streaming Server), written in C, and supports pluggable "capture" modules known as "capture abstraction libraries," known as CALs.
-  It uses the ~libav*~ libraries to encode ~h264~ and stream it over the network using SRTP. The EDSS code is basically done, it just needs to be
-  refactored into a conformant state to the EDSS API. EDSS currently compiles, but I'm not sure if works yet (have to interface with EDCS).
+  It uses the ~libav*~ libraries to encode ~h264~ and stream it over the network using SRTP. The EDSS code is basically done, and was the code I worked on to see if I could stream video over the network. EDSS currently compiles, but I'm not sure if works yet (have to interface with EDCS).
 - EDCS (Echodawn Control Server), written in Rust. It calls EDSS to stream, and will talk to the client for things such as authentication,
-  connection configuration, and such. This component has not been written yet.
+  connection configuration, and such. This component is currently a work-in-progress.
+
+** CALs
+Echodawn is supposed to be pluggable, and CALs are called "capture abstraction libraries" (will probably rename to "control abstraction" when I get to keyboard and mouse support).
+
+Currently, the only capture abstraction library is for a host-based capture of an NVIDIA vGPU virtual machine. Support for X11 and Wayland will be added, along with eventually Windows/macOS capture.
 
 * Echodawn Client (EDC)
 
 EDC has not been implemented yet. It will probably be fully written in Rust, and likely use ~egui~ or SDL.
+
+* Licensing
+This entire codebase is licensed until the GNU AGPLv3.
