@@ -3,6 +3,8 @@
 #include "../vendor/strmap/strmap.h"
 #include "edssStatus.h"
 #include <libavformat/avformat.h>
+#include <libavutil/pixfmt.h>
+#include <stdlib.h>
 
 /** @file
  * Header file for capture abstraction libraries (CALs). Capture abstraction
@@ -17,7 +19,7 @@
  * client.
  */
 typedef struct {
-    AVPixelFormat pixFmt;
+    enum AVPixelFormat pixFmt;
     /**
      * CAL config tells EDSS how big the frame width is.
      */

@@ -6,10 +6,9 @@
 
 // Copy "back buffer" (framebuffer) to "front buffer" based on the frame rate of
 // the captured video.
-void captureThreadFunction(void *threadArgs) {
+void *edssCaptureThreadFunction(void *threadArgs) {
     struct captureThreadArgs *args = (struct captureThreadArgs *)threadArgs;
     captureCtx_t *captureCtx = args->captureCtx;
-    fbEncoderCtx_t *vgpuFbEncoderCtx = args->fbEncoderCtx;
     calConfig_t *calCfg = args->calCfg;
     calPlugin_t *calPlugin = args->calPlugin;
 
@@ -57,8 +56,9 @@ void captureThreadFunction(void *threadArgs) {
         memcpy(data->buffer, calCfg->frame, dataLen);
         pthread_mutex_unlock(&data->mutex);
 
-        if (!ck_ring_enqueue_spmc(&captureCtx->frameRing,
-                                  &captureCtx->frameRingBuffer, data)) {
+        if (!ck_ring_enqueue_spmc(
+                &captureCtx->frameRing,
+                (struct ck_ring_buffer *)&captureCtx->frameRingBuffer, data)) {
             perror("ck_ring_enqueue_spmc");
             printf("[capture thread] Capture enqueue frame failed!!\n");
         }
@@ -71,4 +71,5 @@ void captureThreadFunction(void *threadArgs) {
                   NULL); // wait for next frame
     }
     printf("CAPTURE THREAD EXIT\n");
+    return EDSS_OK;
 }

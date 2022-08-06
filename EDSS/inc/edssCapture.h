@@ -7,4 +7,4 @@ typedef struct {
     void *buffer;
 } captureData_t;
 
-void edssCaptureThreadFunction(void *threadArgs);
+void *edssCaptureThreadFunction(void *threadArgs);

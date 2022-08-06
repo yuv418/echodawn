@@ -1,10 +1,18 @@
-project('vfio-mdev-experiments', 'c',
-  version : '0.1',
-  default_options : ['warning_level=3'])
+project('edss', 'c',
+  version : '0.1')
 
 
+avutil = dependency('libavutil')
+avcodec = dependency('libavcodec')
+swscale = dependency('libswscale')
+avformat = dependency('libavformat')
+ck = dependency('ck')
 
-executable('vfio-mdev-experiments',
-           'vgpuVideo.c',
-           'capture.c',
-           install : true)
+strmap = 'vendor/strmap/strmap.c'
+
+library('libedss',
+           'src/edssInterface.c',
+           'src/edssCapture.c',
+           'src/edssCapture.c',
+           strmap,
+           dependencies: [avutil, avcodec, swscale, avformat, ck])

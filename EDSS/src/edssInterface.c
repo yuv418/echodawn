@@ -86,18 +86,15 @@ int fbBgraToYuv() {
                      fbEncoderCtx.picToEncode->linesize);
 }
 
-EDSS_STATUS edssInitServer(edssConfig_t *edssCfg) {
-    /*
-     * SETUP SETCTION
-     * -----------------------------------------------------------------------------------------------
-     */
-
-    // Setup CAL.
+// NOTE This should be called before anything else
+EDSS_STATUS edssOpenCAL(char calPluginName[100], StrMap *calOptionDict) {
+    // Setup CAL. edssCfg does not have to contain anything other than the CAL
+    // plugin name.
 
     int ret;
     void *calHandle;
 
-    calHandle = dlopen(edssCfg->calPluginName, RTLD_LAZY);
+    calHandle = dlopen(calPluginName, RTLD_LAZY);
     if (!calHandle) {
         return EDSS_INVALID_CAL;
     }
@@ -107,6 +104,21 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg) {
         return EDSS_INVALID_CAL;
     }
 
+    if ((ret = calPlugin->calOptions(calOptionDict)) != EDSS_OK) {
+        return ret;
+    }
+    return EDSS_OK;
+}
+
+EDSS_STATUS edssInitServer(edssConfig_t *edssCfg) {
+    /*
+     * SETUP SETCTION
+     * -----------------------------------------------------------------------------------------------
+     */
+
+    // Copy options to already-initialized CAL. TODO check to make sure that CAL
+    // has already been initialised.
+    int ret;
     if ((ret = calPlugin->calInit(edssCfg->calOptionDict, &calCfg)) !=
         EDSS_OK) {
         return ret;
@@ -118,12 +130,8 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg) {
      */
 
     const AVCodec *cdc;
-    AVCodecParameters *cdcPms;
-    int numStreams;
 
-    numStreams = 1;
-
-    AVOutputFormat *rtpFmt;
+    const AVOutputFormat *rtpFmt;
     char rtpAddress[28]; // maximum ip:port length
     snprintf(rtpAddress, sizeof(rtpAddress), "srtp://%s:%d/",
              inet_ntoa(edssCfg->ip), edssCfg->port);
@@ -268,7 +276,7 @@ EDSS_STATUS edssInitStreaming() {
     if (pthread_create(&captureTh, NULL, &edssCaptureThreadFunction,
                        (void *)&ctArgs) != 0) {
         perror("pthread_create");
-        return 1;
+        return EDSS_PTHREAD_FAILURE;
     }
 
     fbEncoderCtx.picToEncode->pts = 0;
@@ -281,9 +289,10 @@ EDSS_STATUS edssInitStreaming() {
 
         sem_wait(&captureCtx.bufferSem);
         // TODO the max queue size is 2. Make sure it is actually 2.
-        if (ck_ring_dequeue_spmc(&captureCtx.frameRing,
-                                 &captureCtx.frameRingBuffer,
-                                 &copiedFbPointer)) {
+        if (ck_ring_dequeue_spmc(
+                &captureCtx.frameRing,
+                (struct ck_ring_buffer *)&captureCtx.frameRingBuffer,
+                &copiedFbPointer)) {
 
             pthread_mutex_lock(&copiedFbPointer->mutex);
             fbBgraToYuv();
@@ -327,10 +336,11 @@ EDSS_STATUS edssCloseStreaming() {
 
     int ret;
 
+    captureCtx.encodingFinished = true;
     ret = pthread_join(captureTh, NULL);
     if (ret != 0) {
         perror("pthread_join");
-        return 1;
+        return EDSS_PTHREAD_FAILURE;
     }
 
     av_write_trailer(fmtCtx);
@@ -341,7 +351,8 @@ EDSS_STATUS edssCloseStreaming() {
      * -------------------------------------------------------------------------------------------
      */
 
-    printf("image captured successfully and written to test.bmp\n");
-
-    return 0;
+    return EDSS_OK;
 }
+
+/// Not implemented for now
+EDSS_STATUS edssUpdateStreaming() { return EDSS_OK; }

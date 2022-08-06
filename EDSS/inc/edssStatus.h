@@ -1,3 +1,5 @@
+#pragma once
+
 /** @file
  * Header file for EDSS error handling and related functions.
  */
@@ -25,5 +27,7 @@ typedef enum {
     /// When EDSS fails because it cannot encode a frame.
     EDSS_ENCODE_FAILURE,
     /// When EDSS fails because a data type cannot be initialized/allocated
-    EDSS_ALLOCATION_FAILURE
+    EDSS_ALLOCATION_FAILURE,
+    /// When EDSS encounters an error with pthreads.
+    EDSS_PTHREAD_FAILURE
 } EDSS_STATUS;
