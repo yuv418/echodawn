@@ -6,7 +6,7 @@ use std::os::raw::{c_char, c_void};
 
 struct EdssError(edss_unsafe::EDSS_STATUS);
 
-pub struct EdssConfig {
+pub struct EdssAdapter {
     pub ip: Ipv4Addr,
     pub port: u16,
     pub bitrate: u32,
@@ -15,7 +15,7 @@ pub struct EdssConfig {
     pub cal_option_dict: HashMap<String, String>,
 }
 
-impl EdssConfig {
+impl EdssAdapter {
     // I'm sure there is some standardised method of doing this, but I guess
     // I'm not really doing that.
 
@@ -87,7 +87,7 @@ impl EdssConfig {
             config
         };
 
-        EdssConfig {
+        Self {
             ip,
             port,
             bitrate,
