@@ -4,7 +4,7 @@ use std::ffi::CStr;
 use std::net::Ipv4Addr;
 use std::os::raw::{c_char, c_void};
 
-struct EdssError(edss_unsafe::EDSS_STATUS);
+pub struct EdssError(edss_unsafe::EDSS_STATUS);
 
 pub struct EdssAdapter {
     pub ip: Ipv4Addr,
@@ -96,25 +96,25 @@ impl EdssAdapter {
             cal_option_dict: Self::strmap_to_hashmap(config),
         }
     }
-    fn init_server(&self) -> Result<(), EdssError> {
+    pub fn init_server(&self) -> Result<(), EdssError> {
         unsafe {
             edss_unsafe::edssInitServer(&mut self.to_c_struct() as *mut _);
         }
         Ok(())
     }
-    fn init_streaming(&self) -> Result<(), EdssError> {
+    pub fn init_streaming(&self) -> Result<(), EdssError> {
         unsafe {
             edss_unsafe::edssInitStreaming();
         }
         Ok(())
     }
-    fn close_streaming(&self) -> Result<(), EdssError> {
+    pub fn close_streaming(&self) -> Result<(), EdssError> {
         unsafe {
             edss_unsafe::edssCloseStreaming();
         }
         Ok(())
     }
-    fn update_streaming(&self) -> Result<(), EdssError> {
+    pub fn update_streaming(&self) -> Result<(), EdssError> {
         unsafe {
             edss_unsafe::edssUpdateStreaming(&mut self.to_c_struct() as *mut _);
         }
