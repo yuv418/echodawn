@@ -25,11 +25,17 @@ interface EdcsProtocol {
 
     enum EdcsStatus {
         ok @0;
-        err @1;
+        genericErr @1;
+        edssErr @2;
+        uninitialisedEdss @3;
     }
 
     struct EdcsResponse {
         status @0 :EdcsStatus;
+        payload :union {
+            genericErr @1 :Text;
+            edssErrParams @2 :UInt32;
+        }
     }
 
 }

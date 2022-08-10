@@ -1,6 +1,7 @@
 extern crate bindgen;
 
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
     let bindings = bindgen::Builder::default()
         .header("bindings/edssWrapper.h")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))

@@ -1,2 +1,2 @@
-mod edcs_server;
+pub mod edcs_server;
 mod edss_safe;
