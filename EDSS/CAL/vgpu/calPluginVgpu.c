@@ -20,6 +20,7 @@ struct vgpuCALRTCfg {
 static struct vgpuCALRTCfg rtCfg;
 
 EDSS_STATUS calOptions(StrMap *calOptionDict) {
+    calOptionDict = sm_new(1);
     sm_put(calOptionDict, "vgpuId", "");
 
     return EDSS_OK;

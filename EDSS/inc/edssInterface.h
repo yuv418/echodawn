@@ -14,11 +14,13 @@
  * this struct.
  */
 typedef struct {
-    struct in_addr ip; // IPv4 is a 32 bit int
-    uint16_t port;     // max 65535
+    uint32_t ip;   // IPv4 is a 32 bit int so that's what it is. This is useful
+                   // for cross-platform compatibility.
+    uint16_t port; // max 65535
     uint32_t bitrate;
     uint32_t framerate;
-    char srtpOutParams[30]; // Rust control to will specify these
+    char srtpOutParams[30]; // Rust will specify these. NOTE that this should
+                            // maximum be 30(?) characters.
     StrMap *calOptionDict;  // Sent to CAL
 
     // NOTE that some things like
@@ -43,9 +45,9 @@ EDSS_STATUS edssInitStreaming();
 EDSS_STATUS edssCloseStreaming();
 
 /**
- * Update the SRTP stream's to reflect whatever the values are in
- * the edssConfig_t config pointer. */
-EDSS_STATUS edssUpdateStreaming();
+ * Update the SRTP stream's to the new cfg pointer (we only pass a new pointer
+ * since it makes Rust FFI easier). */
+EDSS_STATUS edssUpdateStreaming(edssConfig_t *cfg);
 /**
  * Capture abstraction libraries (CALs) may expose options to the client which
  * they can set. This function allows the control server to retrieve CAL options

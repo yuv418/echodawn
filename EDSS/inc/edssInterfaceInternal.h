@@ -1,6 +1,7 @@
 #include "edssCALInterface.h"
 
 #include <ck_ring.h>
+#include <libavutil/frame.h>
 #include <semaphore.h>
 
 typedef struct {

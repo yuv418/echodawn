@@ -134,7 +134,7 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg) {
     const AVOutputFormat *rtpFmt;
     char rtpAddress[28]; // maximum ip:port length
     snprintf(rtpAddress, sizeof(rtpAddress), "srtp://%s:%d/",
-             inet_ntoa(edssCfg->ip), edssCfg->port);
+             inet_ntoa((struct in_addr){.s_addr = edssCfg->ip}), edssCfg->port);
 
     rtpFmt = av_guess_format("rtp", NULL, NULL);
     if (!rtpFmt) {
@@ -355,4 +355,4 @@ EDSS_STATUS edssCloseStreaming() {
 }
 
 /// Not implemented for now
-EDSS_STATUS edssUpdateStreaming() { return EDSS_OK; }
+EDSS_STATUS edssUpdateStreaming(edssConfig_t *cfg) { return EDSS_OK; }

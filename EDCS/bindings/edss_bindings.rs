@@ -5607,7 +5607,7 @@ extern "C" {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct edssConfig_t {
-    pub ip: in_addr,
+    pub ip: u32,
     pub port: u16,
     pub bitrate: u32,
     pub framerate: u32,
@@ -5747,9 +5747,9 @@ extern "C" {
     pub fn edssCloseStreaming() -> EDSS_STATUS;
 }
 extern "C" {
-    #[doc = " Update the SRTP stream's to reflect whatever the values are in"]
-    #[doc = " the edssConfig_t config pointer."]
-    pub fn edssUpdateStreaming() -> EDSS_STATUS;
+    #[doc = " Update the SRTP stream's to the new cfg pointer (we only pass a new pointer"]
+    #[doc = " since it makes Rust FFI easier)."]
+    pub fn edssUpdateStreaming(cfg: *mut edssConfig_t) -> EDSS_STATUS;
 }
 extern "C" {
     #[doc = " Capture abstraction libraries (CALs) may expose options to the client which"]
