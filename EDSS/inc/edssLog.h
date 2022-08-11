@@ -62,3 +62,6 @@ char *log_time() {
 
 #define EDSS_LOGT(format, ...)                                                 \
     EDSS_LOG(COLOUR_CYAN "TRACE", format, ##__VA_ARGS__)
+
+#define EDSS_LOGW(format, ...)                                                 \
+    EDSS_LOG(COLOUR_YELLOW "TRACE", format, ##__VA_ARGS__)

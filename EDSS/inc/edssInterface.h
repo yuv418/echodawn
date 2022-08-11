@@ -19,8 +19,9 @@ typedef struct {
     uint16_t port; // max 65535
     uint32_t bitrate;
     uint32_t framerate;
-    char srtpOutParams[30]; // Rust will specify these. NOTE that this should
-                            // maximum be 30(?) characters.
+    char srtpOutParams[41]; // Rust will specify these. NOTE that this should
+                            // maximum be 30(?) characters + 1 for the
+                            // terminator.
     StrMap *calOptionDict;  // Sent to CAL
 
     // NOTE that some things like
@@ -33,8 +34,11 @@ typedef struct {
  * Initialize the server. This will allocate and initialize various FFmpeg
  * structures with the values provided from the provided `cfg` variable.
  * Furthermore, any capture abstraction libraries will have their initializers
- * called, for example initing Xlib, PipeWire, or acquiring a framebuffer. */
-EDSS_STATUS edssInitServer(edssConfig_t *cfg);
+ * called, for example initing Xlib, PipeWire, or acquiring a framebuffer. This
+ * function takes a pointer to a char* (sdpBuffer), which will be allocated in
+ * the function and used to store the resulting SDP data. The sdpBuffer will be
+ * NULL if the function returned somethinng other than EDSS_OK.  */
+EDSS_STATUS edssInitServer(edssConfig_t *cfg, char **sdpBuffer);
 
 /** Begin the SRTP server main loop, and begin the capture thread. NOTE that
  * this function blocks. TODO make this function not block by running the

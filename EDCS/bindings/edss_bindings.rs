@@ -5613,14 +5613,14 @@ pub struct edssConfig_t {
     pub port: u16,
     pub bitrate: u32,
     pub framerate: u32,
-    pub srtpOutParams: [::std::os::raw::c_char; 30usize],
+    pub srtpOutParams: [::std::os::raw::c_char; 41usize],
     pub calOptionDict: *mut StrMap,
 }
 #[test]
 fn bindgen_test_layout_edssConfig_t() {
     assert_eq!(
         ::std::mem::size_of::<edssConfig_t>(),
-        56usize,
+        72usize,
         concat!("Size of: ", stringify!(edssConfig_t))
     );
     assert_eq!(
@@ -5720,7 +5720,7 @@ fn bindgen_test_layout_edssConfig_t() {
                 let ptr = uninit.as_ptr();
                 ::std::ptr::addr_of!((*ptr).calOptionDict) as usize - ptr as usize
             },
-            48usize,
+            64usize,
             concat!(
                 "Offset of field: ",
                 stringify!(edssConfig_t),
@@ -5735,8 +5735,14 @@ extern "C" {
     #[doc = " Initialize the server. This will allocate and initialize various FFmpeg"]
     #[doc = " structures with the values provided from the provided `cfg` variable."]
     #[doc = " Furthermore, any capture abstraction libraries will have their initializers"]
-    #[doc = " called, for example initing Xlib, PipeWire, or acquiring a framebuffer."]
-    pub fn edssInitServer(cfg: *mut edssConfig_t) -> EDSS_STATUS;
+    #[doc = " called, for example initing Xlib, PipeWire, or acquiring a framebuffer. This"]
+    #[doc = " function takes a pointer to a char* (sdpBuffer), which will be allocated in"]
+    #[doc = " the function and used to store the resulting SDP data. The sdpBuffer will be"]
+    #[doc = " NULL if the function returned somethinng other than EDSS_OK."]
+    pub fn edssInitServer(
+        cfg: *mut edssConfig_t,
+        sdpBuffer: *mut *mut ::std::os::raw::c_char,
+    ) -> EDSS_STATUS;
 }
 extern "C" {
     #[doc = " Begin the SRTP server main loop, and begin the capture thread. NOTE that"]

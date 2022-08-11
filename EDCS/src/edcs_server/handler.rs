@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use log::debug;
 
-use super::config;
+use super::config::{self, EdcsConfig};
 use super::edcs_proto::{
     edcs_message, edcs_response, EdcsMessage, EdcsMessageType, EdcsResponse, EdcsSetupEdcsData,
-    EdcsStatus,
+    EdcsSetupStreamData, EdcsStatus, EdcsStreamParams,
 };
 use crate::edss_safe::edss::EdssAdapter;
 
@@ -43,7 +43,6 @@ impl EdcsHandler {
                     }
                 };
 
-                // TODO stop hardcoding random stuff.
                 // TODO autogenerate a random key and return it through the response.
                 match EdssAdapter::new(
                     cfg.edss_config.plugin_name.clone(),
@@ -51,7 +50,6 @@ impl EdcsHandler {
                     cfg.port,
                     stream_params.bitrate,
                     stream_params.framerate,
-                    "".to_owned(),
                 ) {
                     Ok(adapter) => {
                         self.adapter = Some(adapter);
@@ -78,7 +76,7 @@ impl EdcsHandler {
                 if let Some(adapter) = &mut self.adapter {
                     adapter.cal_option_dict = match msg.payload {
                         Some(edcs_message::Payload::SetupStreamParams(d)) => d.cal_option_dict,
-                        // TODO keep it dry
+                        // TODO keep it dry (we will have to check requestss for all message types)
                         _ => {
                             return Ok(EdcsResponse {
                                 status: EdcsStatus::InvalidRequest as i32,
@@ -88,9 +86,22 @@ impl EdcsHandler {
                             })
                         }
                     };
-                    if let Err(e) = adapter.init_server() {
-                        edcs_status = EdcsStatus::EdssErr;
-                        response_payload = Some(edcs_response::Payload::EdssErrData(e.0));
+                    match adapter.init_server() {
+                        Ok(_) => {
+                            response_payload = Some(edcs_response::Payload::SetupStreamData(
+                                EdcsSetupStreamData {
+                                    out_stream_params: Some(EdcsStreamParams {
+                                        framerate: adapter.framerate,
+                                        bitrate: adapter.bitrate,
+                                    }),
+                                    sdp: adapter.sdp.clone().unwrap(), // Guaranteed to be Some at this point
+                                },
+                            ))
+                        }
+                        Err(e) => {
+                            edcs_status = EdcsStatus::EdssErr;
+                            response_payload = Some(edcs_response::Payload::EdssErrData(e.0));
+                        }
                     }
                 } else {
                     edcs_status = EdcsStatus::UninitialisedEdss;

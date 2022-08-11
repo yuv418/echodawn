@@ -33,6 +33,8 @@ static AVPacket *encPkt;
 static AVStream *avS;
 static AVFormatContext *fmtCtx;
 
+#define SDP_BUFLEN 3000
+
 EDSS_STATUS edssInterfaceSetupSwscale(edssConfig_t *edssCfg) {
 
     // avpicture_alloc(vgpuFbEncoderCtx->picToEncode, AV_PIX_FMT_YUV420P,
@@ -117,7 +119,7 @@ EDSS_STATUS edssOpenCAL(char calPluginName[100], StrMap **calOptionDict) {
     return EDSS_OK;
 }
 
-EDSS_STATUS edssInitServer(edssConfig_t *edssCfg) {
+EDSS_STATUS edssInitServer(edssConfig_t *edssCfg, char **sdpBuffer) {
     /*
      * SETUP SETCTION
      * -----------------------------------------------------------------------------------------------
@@ -147,19 +149,19 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg) {
 
     rtpFmt = av_guess_format("rtp", NULL, NULL);
     if (!rtpFmt) {
-        fprintf(stderr, "Failed to guess format srtp");
+        EDSS_LOGE("Failed to guess format srtp\n");
         return EDSS_LIBAV_FAILURE;
     }
     avformat_alloc_output_context2(&fmtCtx, rtpFmt, rtpFmt->name, rtpAddress);
     if (!fmtCtx) {
-        fprintf(stderr, "Failed to allocate AVFormatContext\n");
+        EDSS_LOGE("Failed to allocate AVFormatContext\n");
         return EDSS_LIBAV_FAILURE;
     }
     av_dump_format(fmtCtx, 0, rtpAddress, 1);
 
     avS = avformat_new_stream(fmtCtx, NULL);
     if (!avS) {
-        fprintf(stderr, "Failed to allocate AVStream\n");
+        EDSS_LOGE("Failed to allocate AVStream\n");
         return EDSS_LIBAV_FAILURE;
     }
 
@@ -171,12 +173,12 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg) {
     }
     cdcCtx = avcodec_alloc_context3(cdc);
     if (cdcCtx < 0) {
-        fprintf(stderr, "Failed to allocate AVCodecContext\n");
+        EDSS_LOGE("Failed to allocate AVCodecContext\n");
         return EDSS_LIBAV_FAILURE;
     }
     encPkt = av_packet_alloc();
     if (encPkt < 0) {
-        fprintf(stderr, "Failed to allocate AVPacket\n");
+        EDSS_LOGE("Failed to allocate AVPacket\n");
         return EDSS_LIBAV_FAILURE;
     }
 
@@ -200,7 +202,7 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg) {
 
     ret = avcodec_open2(cdcCtx, cdc, NULL);
     if (ret < 0) {
-        fprintf(stderr, "Failed to open the codec\n");
+        EDSS_LOGE("Failed to open the codec\n");
         return EDSS_LIBAV_FAILURE;
     }
 
@@ -248,8 +250,8 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg) {
 
     ret = avio_open2(&fmtCtx->pb, rtpAddress, AVIO_FLAG_WRITE, NULL, &opts);
     if (ret < 0) {
-        fprintf(stderr, "Failed to open the output file for writing: %s\n",
-                av_err2str(ret));
+        EDSS_LOGE("Failed to open the output file for writing: %s\n",
+                  av_err2str(ret));
         return EDSS_LIBAV_FAILURE;
     }
 
@@ -257,16 +259,14 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg) {
                                 NULL); // The muxer(?) options don't have to be
                                        // passed here, only to avio_open2
     if (ret < 0) {
-        fprintf(stderr, "Failed to write header to output file\n");
+        EDSS_LOGE("Failed to write header to output file\n");
         return EDSS_LIBAV_FAILURE;
     }
 
     // thanks stackoverflow
-    // TODO figure out how SDP will get sent to the client
-    char buf[20000];
+    *sdpBuffer = malloc(SDP_BUFLEN);
     AVFormatContext *ac[] = {fmtCtx};
-    av_sdp_create(ac, 1, buf, 20000);
-    printf("sdp:\n%s\n", buf); // dump SDP for now
+    av_sdp_create(ac, 1, *sdpBuffer, SDP_BUFLEN);
 
     // start the capture thread
     return EDSS_OK;
@@ -310,7 +310,7 @@ EDSS_STATUS edssInitStreaming() {
             ret = avcodec_send_frame(cdcCtx, fbEncoderCtx.picToEncode);
 
             if (ret < 0) {
-                fprintf(stderr, "Failed to send AVFrame to encoder\n");
+                EDSS_LOGE("Failed to send AVFrame to encoder\n");
                 return EDSS_ENCODE_FAILURE;
             }
 
@@ -322,7 +322,7 @@ EDSS_STATUS edssInitStreaming() {
                     // avcodec_receive_packet\n");
                     break;
                 } else if (ret < 0) {
-                    fprintf(stderr, "Failed to receive AVPacket\n");
+                    EDSS_LOGE("Failed to receive AVPacket\n");
                     return EDSS_ENCODE_FAILURE;
                 }
                 // encPkt->duration = avS->time_base.den / avS->time_base.num /
@@ -336,7 +336,7 @@ EDSS_STATUS edssInitStreaming() {
             totalFramesEncoded++; // TODO why not just use pts?
 
         } else {
-            printf("dequeue failed, continuing!!\n"); // FIX THIS!!
+            EDSS_LOGW("dequeue failed, continuing!!\n"); // FIX THIS!!
         }
     }
 }

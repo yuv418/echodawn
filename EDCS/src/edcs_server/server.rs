@@ -100,10 +100,10 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                     sz,
                     pb_len
                 );
-                let mut message_buffer = vec![0; pb_len + 1];
+                let mut message_buffer = vec![0; pb_len];
                 while let Ok(_) = reader.read_exact(&mut message_buffer).await {
                     trace!("Protobuf data {:?}", message_buffer);
-                    let edcs_message = EdcsMessage::decode_length_delimited(&message_buffer[..])?;
+                    let edcs_message = EdcsMessage::decode(&message_buffer[..])?;
                     debug!("EDCS Message {:#?}", edcs_message);
 
                     {
@@ -119,8 +119,7 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                         // TODO is this the most efficient way to do this?
                         // The first ten bytes are the length delimiter, then the next bit is the actual protobuf
                         let encoded_len = edcs_response.encoded_len();
-                        let mut send_delimiter_buf: Vec<u8> =
-                            vec![0; length_delimiter_len(encoded_len) - 1];
+                        let mut send_delimiter_buf: Vec<u8> = vec![];
                         encode_length_delimiter(
                             edcs_response.encoded_len(),
                             &mut send_delimiter_buf,
@@ -130,9 +129,14 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                             send_delimiter_buf.push(0);
                         }
                         trace!("Delimiter buffer is {:?}", send_delimiter_buf);
+                        trace!("Response length should be {}", edcs_response.encoded_len());
+                        trace!(
+                            "Need {} bytes for delim buffer",
+                            length_delimiter_len(encoded_len)
+                        );
                         writer.write_all(&mut send_delimiter_buf).await?;
 
-                        let mut response_buffer = edcs_response.encode_length_delimited_to_vec();
+                        let mut response_buffer = edcs_response.encode_to_vec();
                         trace!("Response buffer is {:?}", response_buffer);
                         writer.write_all(&mut response_buffer).await?;
                     }

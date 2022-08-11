@@ -100,8 +100,7 @@ impl EdcClient {
 
     // Handle sending RPCs to the EDCS
     async fn send_message(&mut self, msg: EdcsMessage) -> anyhow::Result<EdcsResponse> {
-        let delimiter_buflen = length_delimiter_len(msg.encoded_len());
-        let mut delimiter_buf: Vec<u8> = vec![0; delimiter_buflen - 1];
+        let mut delimiter_buf: Vec<u8> = vec![];
         // Write length delimiter first
         encode_length_delimiter(msg.encoded_len(), &mut delimiter_buf)?;
 
@@ -118,7 +117,8 @@ impl EdcClient {
             msg.encoded_len()
         );
 
-        let mut msg_buf = msg.encode_length_delimited_to_vec();
+        // We write the delimiter separately, so we don't need to encode with delimiter.
+        let mut msg_buf = msg.encode_to_vec();
         trace!("Writing data {:?} to PB", msg_buf);
         self.writer.write_all(&mut msg_buf).await?;
 
@@ -126,10 +126,13 @@ impl EdcClient {
         // Read response delimiter
         while let Ok(_) = self.reader.read_exact(&mut delimiter_buf).await {
             trace!("Read delimiter buf {:?}", delimiter_buf);
+            trace!("resp_len = {}", resp_len);
+
             resp_len = decode_length_delimiter(&delimiter_buf[..])?;
-            let mut resp_buf = vec![0; resp_len + 1];
+            let mut resp_buf = vec![0; resp_len];
             while let Ok(_) = self.reader.read_exact(&mut resp_buf).await {
-                return EdcsResponse::decode_length_delimited(&resp_buf[..])
+                trace!("EDCS response data {:?}", &resp_buf[..]);
+                return EdcsResponse::decode(&resp_buf[..])
                     .with_context(|| "Failed to parse EDCS response");
             }
         }
