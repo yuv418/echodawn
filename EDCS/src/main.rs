@@ -36,7 +36,7 @@ fn main() {
                 buf,
                 "[{} {} {}:{}] {}",
                 level_style.value(record.level()),
-                chrono::Local::now().format("%Y-%m-%dT%H:%M%SZ"),
+                chrono::Local::now().format("%Y-%m-%dT%H:%M:%SZ"),
                 record.file().unwrap_or("unknown file"),
                 record.line().unwrap_or(0),
                 record.args()

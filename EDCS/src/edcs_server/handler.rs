@@ -3,7 +3,10 @@ use std::sync::Arc;
 use log::debug;
 
 use super::config;
-use super::edcs_proto::{edcs_response, EdcsMessage, EdcsMessageType, EdcsResponse, EdcsStatus};
+use super::edcs_proto::{
+    edcs_message, edcs_response, EdcsMessage, EdcsMessageType, EdcsResponse, EdcsSetupStreamData,
+    EdcsStatus,
+};
 use crate::edss_safe::edss::EdssAdapter;
 
 #[derive(Debug, Default)]
@@ -28,17 +31,41 @@ impl EdcsHandler {
 
                 debug!("HANDLER Setting up stream.");
 
+                let stream_params = match msg.payload {
+                    Some(edcs_message::Payload::SetupStreamParams(p)) => p,
+                    _ => {
+                        return Ok(EdcsResponse {
+                            status: EdcsStatus::InvalidRequest as i32,
+                            payload: Some(edcs_response::Payload::InvalidRequestData(
+                                "The given payload is not of type SetupStreamParams".to_string(),
+                            )),
+                        })
+                    }
+                };
+
                 // TODO stop hardcoding random stuff.
                 // TODO autogenerate a random key and return it through the response.
                 match EdssAdapter::new(
                     cfg.edss_config.plugin_name.clone(),
                     cfg.ip,
                     cfg.port,
-                    1000000,
-                    60,
+                    stream_params.bitrate,
+                    stream_params.framerate,
                     "".to_owned(),
                 ) {
-                    Ok(adapter) => self.adapter = Some(adapter),
+                    Ok(adapter) => {
+                        self.adapter = Some(adapter);
+                        response_payload = Some(edcs_response::Payload::SetupStreamData(
+                            EdcsSetupStreamData {
+                                cal_option_dict: self
+                                    .adapter
+                                    .as_ref()
+                                    .unwrap()
+                                    .cal_option_dict
+                                    .clone(), // unwrap will never fail here
+                            },
+                        ));
+                    }
                     Err(e) => {
                         edcs_status = EdcsStatus::EdssErr;
                         response_payload = Some(edcs_response::Payload::EdssErrData(e.0));

@@ -1,4 +1,5 @@
 #include "../../inc/edssCALInterface.h"
+#include "../../inc/edssLog.h"
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -19,9 +20,11 @@ struct vgpuCALRTCfg {
 
 static struct vgpuCALRTCfg rtCfg;
 
-EDSS_STATUS calOptions(StrMap *calOptionDict) {
-    calOptionDict = sm_new(1);
-    sm_put(calOptionDict, "vgpuId", "");
+EDSS_STATUS calOptions(StrMap **calOptionDict) {
+    *calOptionDict = sm_new(1);
+    if (!sm_put(*calOptionDict, "vgpuId", "")) {
+        return EDSS_STRMAP_FAILURE;
+    }
 
     return EDSS_OK;
 }
@@ -89,3 +92,10 @@ EDSS_STATUS calShutdown() {
 
     return EDSS_OK;
 }
+
+calPlugin_t calPlugin = {
+    .calOptions = calOptions,
+    .calInit = calInit,
+    .calReadFrame = calReadFrame,
+    .calShutdown = calShutdown,
+};

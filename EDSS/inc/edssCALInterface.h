@@ -47,7 +47,7 @@ typedef struct {
      * Called by `edssGetCALOptionsDict`. Effectively the "implementation" for
      * that function. See documentation in edssInterface.h.
      */
-    EDSS_STATUS (*calOptions)(StrMap *);
+    EDSS_STATUS (*calOptions)(StrMap **);
 
     /**
      * Initialize CAL (eg. init Xlib/etc). This should be set up such that when

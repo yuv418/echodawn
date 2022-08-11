@@ -1,3 +1,5 @@
+use log::{info, trace};
+
 use super::edss_unsafe;
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -54,6 +56,7 @@ impl EdssAdapter {
         value: *const c_char,
         p_hash_map: *const c_void,
     ) {
+        trace!("In strmap_enum_callback");
         let hash_map: &mut HashMap<String, String> = unsafe { std::mem::transmute(p_hash_map) };
         let key_rs = unsafe { CStr::from_ptr(key) }
             .to_str()
@@ -66,28 +69,41 @@ impl EdssAdapter {
         hash_map.insert(key_rs, value_rs);
     }
 
-    fn strmap_to_hashmap(in_map: *mut edss_unsafe::StrMap) -> HashMap<String, String> {
+    fn strmap_to_hashmap(
+        in_map: *mut edss_unsafe::StrMap,
+    ) -> anyhow::Result<HashMap<String, String>, EdssError> {
+        trace!("In strmap_to_hashmap");
         let hash_map: HashMap<String, String> = HashMap::new();
         let hash_map_void: *const c_void = unsafe { std::mem::transmute(&hash_map) };
-        unsafe { edss_unsafe::sm_enum(in_map, Some(Self::strmap_enum_callback), hash_map_void) };
-        hash_map
+        unsafe {
+            if edss_unsafe::sm_enum(in_map, Some(Self::strmap_enum_callback), hash_map_void) < 1 {
+                return Err(EdssError(edss_unsafe::EDSS_STATUS_EDSS_STRMAP_FAILURE));
+                // TODO, is this really the best error for us to return?
+            }
+        };
+        Ok(hash_map)
     }
 
     pub fn new(
-        plugin_name: String,
+        mut plugin_name: String,
         ip: Ipv4Addr,
         port: u16,
         bitrate: u32,
         framerate: u32,
         srtp_out_params: String,
-    ) -> Result<Self, EdssError> {
+    ) -> anyhow::Result<Self, EdssError> {
         let config = unsafe {
-            let config: *mut edss_unsafe::StrMap = std::ptr::null_mut();
+            plugin_name += "\0"; // If you don't do this, the strings will become garbled.
+
+            let mut config: *mut edss_unsafe::StrMap = std::ptr::null_mut();
+
+            trace!("strmap address is {:p}", config);
             let cal_open_result =
-                edss_unsafe::edssOpenCAL(plugin_name.as_ptr() as *mut c_char, config);
+                edss_unsafe::edssOpenCAL(plugin_name.as_ptr() as *mut c_char, &mut config);
             if cal_open_result != edss_unsafe::EDSS_STATUS_EDSS_OK {
                 return Err(EdssError(cal_open_result));
             }
+            trace!("strmap address is {:p}", config);
             config
         };
 
@@ -97,7 +113,7 @@ impl EdssAdapter {
             bitrate,
             framerate,
             srtp_out_params,
-            cal_option_dict: Self::strmap_to_hashmap(config),
+            cal_option_dict: Self::strmap_to_hashmap(config)?,
         })
     }
     pub fn init_server(&self) -> Result<(), EdssError> {

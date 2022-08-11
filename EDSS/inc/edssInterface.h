@@ -57,4 +57,4 @@ EDSS_STATUS edssUpdateStreaming(edssConfig_t *cfg);
  * name as a file and ready it for edssInitServer. Furthermore, this will return
  * the option dict for you to configure CAL properly.
  */
-EDSS_STATUS edssOpenCAL(char calPluginName[100], StrMap *calOptionDict);
+EDSS_STATUS edssOpenCAL(char calPluginName[100], StrMap **calOptionDict);

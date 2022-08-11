@@ -13,6 +13,7 @@ enum EdcsStatus {
     GENERIC_ERR = 1;
     EDSS_ERR = 2;
     UNINITIALISED_EDSS = 3;
+    INVALID_REQUEST = 4;
 }
 
 message EdcsMessage {
@@ -27,10 +28,13 @@ message EdcsStreamParams {
     uint32 framerate = 1;
     uint32 bitrate = 2;
 }
+message EdcsSetupStreamData { map<string, string> cal_option_dict = 1; }
 message EdcsResponse {
     EdcsStatus status = 1;
     oneof payload {
-        string generic_err_data = 2;
-        uint32 edss_err_data = 3;
+        EdcsSetupStreamData setup_stream_data = 2;
+        string generic_err_data = 3;
+        uint32 edss_err_data = 4;
+        string invalid_request_data = 5;
     }
 }

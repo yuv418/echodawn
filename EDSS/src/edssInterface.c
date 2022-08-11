@@ -88,7 +88,7 @@ int fbBgraToYuv() {
 }
 
 // NOTE This should be called before anything else
-EDSS_STATUS edssOpenCAL(char calPluginName[100], StrMap *calOptionDict) {
+EDSS_STATUS edssOpenCAL(char calPluginName[100], StrMap **calOptionDict) {
     // Setup CAL. edssCfg does not have to contain anything other than the CAL
     // plugin name.
 
@@ -105,7 +105,8 @@ EDSS_STATUS edssOpenCAL(char calPluginName[100], StrMap *calOptionDict) {
 
     calPlugin = dlsym(calHandle, "calPlugin");
     if (!calPlugin) {
-        EDSS_LOGE("edssOpenCAL dlsym failed\n");
+        EDSS_LOGE("edssOpenCAL dlsym failed. Check that the plugin exports the "
+                  "calPlugin structure.\n");
         return EDSS_INVALID_CAL;
     }
 

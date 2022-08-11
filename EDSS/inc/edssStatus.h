@@ -29,5 +29,7 @@ typedef enum {
     /// When EDSS fails because a data type cannot be initialized/allocated
     EDSS_ALLOCATION_FAILURE,
     /// When EDSS encounters an error with pthreads.
-    EDSS_PTHREAD_FAILURE
+    EDSS_PTHREAD_FAILURE,
+    /// When EDSS encounters an error with StrMap.
+    EDSS_STRMAP_FAILURE,
 } EDSS_STATUS;

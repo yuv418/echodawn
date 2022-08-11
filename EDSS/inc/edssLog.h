@@ -20,6 +20,8 @@
 
 #define TIME_SIZE 40 // %Y-%m-%dT%H:%M%SZ
 
+char *logged_time;
+
 char *log_time() {
     char *buf;
     time_t now;
@@ -30,7 +32,7 @@ char *log_time() {
     time(&now);
     localnow = localtime(&now);
 
-    if ((ret = strftime(buf, TIME_SIZE, "%Y-%m-%dT%H:%M%SZ", localnow))) {
+    if ((ret = strftime(buf, TIME_SIZE, "%Y-%m-%dT%H:%M:%SZ", localnow))) {
         return buf;
     }
     // This part should never happen
@@ -43,7 +45,7 @@ char *log_time() {
 
 // level contains both colour and level name
 #define EDSS_LOG(level, format, ...)                                           \
-    char *logged_time = log_time();                                            \
+    logged_time = log_time();                                                  \
     printf("[" COLOUR_BLACKTEXT COLOUR_GREEN "EDSS" COLOUR_RESET               \
            " " COLOUR_BLACKTEXT level COLOUR_RESET " %s %s:%d] " format,       \
            logged_time, __FILE__, __LINE__, ##__VA_ARGS__);                    \
@@ -57,3 +59,6 @@ char *log_time() {
 
 #define EDSS_LOGI(format, ...)                                                 \
     EDSS_LOG(COLOUR_BLUE "INFO", format, ##__VA_ARGS__)
+
+#define EDSS_LOGT(format, ...)                                                 \
+    EDSS_LOG(COLOUR_CYAN "TRACE", format, ##__VA_ARGS__)

@@ -21,6 +21,12 @@ fn main() {
         .write_to_file("bindings/edss_bindings.rs")
         .expect("Failed to write edssInterface bindings.");
 
-    prost_build::compile_protos(&["proto/edcs_proto.proto"], &["proto/"])
+    let proto_path = manifest_dir
+        .parent()
+        .unwrap()
+        .join("EDCSProtocol")
+        .join("proto");
+
+    prost_build::compile_protos(&[proto_path.join("edcs_proto.proto")], &[proto_path])
         .expect("Failed to compile protobufs");
 }

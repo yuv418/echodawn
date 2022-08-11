@@ -3581,6 +3581,8 @@ pub const EDSS_STATUS_EDSS_ENCODE_FAILURE: EDSS_STATUS = 8;
 pub const EDSS_STATUS_EDSS_ALLOCATION_FAILURE: EDSS_STATUS = 9;
 #[doc = " When EDSS encounters an error with pthreads."]
 pub const EDSS_STATUS_EDSS_PTHREAD_FAILURE: EDSS_STATUS = 10;
+#[doc = " When EDSS encounters an error with StrMap."]
+pub const EDSS_STATUS_EDSS_STRMAP_FAILURE: EDSS_STATUS = 11;
 #[doc = " Status enum that allows callees to understand why a call failed."]
 pub type EDSS_STATUS = ::std::os::raw::c_uint;
 #[repr(C)]
@@ -5761,7 +5763,7 @@ extern "C" {
     #[doc = " the option dict for you to configure CAL properly."]
     pub fn edssOpenCAL(
         calPluginName: *mut ::std::os::raw::c_char,
-        calOptionDict: *mut StrMap,
+        calOptionDict: *mut *mut StrMap,
     ) -> EDSS_STATUS;
 }
 #[repr(C)]
