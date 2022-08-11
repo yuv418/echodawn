@@ -123,6 +123,8 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg) {
      * -----------------------------------------------------------------------------------------------
      */
 
+    EDSS_LOGD("Initialising server\n");
+
     // Copy options to already-initialized CAL. TODO check to make sure that CAL
     // has already been initialised.
     int ret;

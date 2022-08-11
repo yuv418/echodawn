@@ -4,7 +4,7 @@ use log::debug;
 
 use super::config;
 use super::edcs_proto::{
-    edcs_message, edcs_response, EdcsMessage, EdcsMessageType, EdcsResponse, EdcsSetupStreamData,
+    edcs_message, edcs_response, EdcsMessage, EdcsMessageType, EdcsResponse, EdcsSetupEdcsData,
     EdcsStatus,
 };
 use crate::edss_safe::edss::EdssAdapter;
@@ -26,18 +26,18 @@ impl EdcsHandler {
         let mut edcs_status = EdcsStatus::Ok;
 
         match msg.message_type() {
-            EdcsMessageType::SetupStream => {
+            EdcsMessageType::SetupEdcs => {
                 // Initialize EDSS, don't start stream.
 
-                debug!("HANDLER Setting up stream.");
+                debug!("HANDLER Setting up EDCS.");
 
                 let stream_params = match msg.payload {
-                    Some(edcs_message::Payload::SetupStreamParams(p)) => p,
+                    Some(edcs_message::Payload::SetupEdcsParams(p)) => p,
                     _ => {
                         return Ok(EdcsResponse {
                             status: EdcsStatus::InvalidRequest as i32,
                             payload: Some(edcs_response::Payload::InvalidRequestData(
-                                "The given payload is not of type SetupStreamParams".to_string(),
+                                "The given payload is not of type SetupEdcsParams".to_string(),
                             )),
                         })
                     }
@@ -55,16 +55,15 @@ impl EdcsHandler {
                 ) {
                     Ok(adapter) => {
                         self.adapter = Some(adapter);
-                        response_payload = Some(edcs_response::Payload::SetupStreamData(
-                            EdcsSetupStreamData {
+                        response_payload =
+                            Some(edcs_response::Payload::SetupEdcsData(EdcsSetupEdcsData {
                                 cal_option_dict: self
                                     .adapter
                                     .as_ref()
                                     .unwrap()
                                     .cal_option_dict
                                     .clone(), // unwrap will never fail here
-                            },
-                        ));
+                            }));
                     }
                     Err(e) => {
                         edcs_status = EdcsStatus::EdssErr;
@@ -74,8 +73,21 @@ impl EdcsHandler {
 
                 debug!("HANDLER Finished setting up stream.");
             }
-            EdcsMessageType::StartStream => {
-                if let Some(adapter) = &self.adapter {
+            EdcsMessageType::SetupStream => {
+                // TODO: DRY here
+                if let Some(adapter) = &mut self.adapter {
+                    adapter.cal_option_dict = match msg.payload {
+                        Some(edcs_message::Payload::SetupStreamParams(d)) => d.cal_option_dict,
+                        // TODO keep it dry
+                        _ => {
+                            return Ok(EdcsResponse {
+                                status: EdcsStatus::InvalidRequest as i32,
+                                payload: Some(edcs_response::Payload::InvalidRequestData(
+                                    "The given payload is not of type SetupEdcsParams".to_string(),
+                                )),
+                            })
+                        }
+                    };
                     if let Err(e) = adapter.init_server() {
                         edcs_status = EdcsStatus::EdssErr;
                         response_payload = Some(edcs_response::Payload::EdssErrData(e.0));
@@ -84,7 +96,11 @@ impl EdcsHandler {
                     edcs_status = EdcsStatus::UninitialisedEdss;
                 }
             }
-            EdcsMessageType::CloseStream | EdcsMessageType::UpdateStream => {}
+            EdcsMessageType::StartStream
+            | EdcsMessageType::CloseStream
+            | EdcsMessageType::UpdateStream => {
+                todo!()
+            }
         }
 
         // Send out the response

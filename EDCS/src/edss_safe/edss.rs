@@ -1,4 +1,4 @@
-use log::{info, trace};
+use log::{debug, info, trace};
 
 use super::edss_unsafe;
 use std::collections::HashMap;
@@ -25,12 +25,20 @@ impl EdssAdapter {
     fn to_c_struct(&self) -> edss_unsafe::edssConfig_t {
         let ip_int = self.ip.into();
         unsafe {
-            let str_map = edss_unsafe::sm_new(32);
+            let str_map = edss_unsafe::sm_new(self.cal_option_dict.len().try_into().unwrap());
+            debug!("Begin conversion to C struct");
             for key in self.cal_option_dict.keys() {
-                edss_unsafe::sm_put(
-                    str_map,
-                    key.as_ptr() as *const c_char,
-                    self.cal_option_dict[key].as_ptr() as *const c_char,
+                let key_c = key.to_owned() + "\0";
+                let val_c = self.cal_option_dict[key].to_owned() + "\0";
+                debug!(
+                    "sm_put returns {}, key_c {}, val_c {}",
+                    edss_unsafe::sm_put(
+                        str_map,
+                        key_c.as_ptr() as *const c_char,
+                        val_c.as_ptr() as *const c_char,
+                    ),
+                    key_c,
+                    val_c
                 );
             }
 
@@ -118,7 +126,10 @@ impl EdssAdapter {
     }
     pub fn init_server(&self) -> Result<(), EdssError> {
         unsafe {
-            edss_unsafe::edssInitServer(&mut self.to_c_struct() as *mut _);
+            let result = edss_unsafe::edssInitServer(&mut self.to_c_struct() as *mut _);
+            if result != edss_unsafe::EDSS_STATUS_EDSS_OK {
+                return Err(EdssError(result));
+            }
         }
         Ok(())
     }

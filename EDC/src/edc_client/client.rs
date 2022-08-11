@@ -8,6 +8,7 @@ use tokio_rustls::rustls::{self, OwnedTrustAnchor};
 use tokio_rustls::TlsConnector;
 use tokio_util::compat::{Compat, TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
+use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::BufReader;
 use std::path::Path;
@@ -15,7 +16,9 @@ use std::sync::Arc;
 
 use crate::edc_client::{
     config::ClientConfig,
-    edcs_proto::{edcs_message, EdcsMessage, EdcsMessageType, EdcsResponse, EdcsStreamParams},
+    edcs_proto::{
+        edcs_message, EdcsCalParams, EdcsMessage, EdcsMessageType, EdcsResponse, EdcsStreamParams,
+    },
 };
 
 struct NoCertVerify {}
@@ -135,16 +138,28 @@ impl EdcClient {
         Err(anyhow!("Did not read EDCS response"))
     }
 
-    pub async fn setup_stream(
+    pub async fn setup_edcs(
         &mut self,
         framerate: u32,
         bitrate: u32,
     ) -> anyhow::Result<EdcsResponse> {
         self.send_message(EdcsMessage {
-            message_type: EdcsMessageType::SetupStream as i32,
-            payload: Some(edcs_message::Payload::SetupStreamParams(EdcsStreamParams {
+            message_type: EdcsMessageType::SetupEdcs as i32,
+            payload: Some(edcs_message::Payload::SetupEdcsParams(EdcsStreamParams {
                 framerate,
                 bitrate,
+            })),
+        })
+        .await
+    }
+    pub async fn setup_stream(
+        &mut self,
+        cal_option_dict: HashMap<String, String>,
+    ) -> anyhow::Result<EdcsResponse> {
+        self.send_message(EdcsMessage {
+            message_type: EdcsMessageType::SetupStream as i32,
+            payload: Some(edcs_message::Payload::SetupStreamParams(EdcsCalParams {
+                cal_option_dict,
             })),
         })
         .await

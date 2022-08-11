@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use edc::edc_client::client::EdcClient;
+use edc::edc_client::edcs_proto::{edcs_response, EdcsResponse};
 use log::info;
 
 #[derive(Parser, Debug)]
@@ -50,7 +51,17 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting up client!");
     let mut client = EdcClient::new(&args.config_file_path).await?;
     info!("Client connected to server");
-    let response = client.setup_stream(60, 100000).await?;
+
+    let response = client.setup_edcs(60, 100000).await?;
+    info!("Client setup EDCS returned response {:#?}", response);
+
+    let mut data_map = match response.payload {
+        Some(edcs_response::Payload::SetupEdcsData(m)) => m.cal_option_dict,
+        _ => panic!("Invalid response payload"),
+    };
+    data_map.insert("vgpuId".to_string(), "2".to_string());
+
+    let response = client.setup_stream(data_map).await?;
     info!("Client setup stream returned response {:#?}", response);
 
     Ok(())

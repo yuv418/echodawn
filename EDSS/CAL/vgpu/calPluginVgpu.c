@@ -1,5 +1,6 @@
 #include "../../inc/edssCALInterface.h"
 #include "../../inc/edssLog.h"
+#include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -46,7 +47,8 @@ EDSS_STATUS calInit(StrMap *calOptionDict, calConfig_t *calCfg) {
 
     vgpuFd = open(gid_path, O_RDWR);
     if (vgpuFd < 0) {
-        perror("open /dev/nvidia-vgpu*");
+        EDSS_LOGE("open /dev/nvidia-vgpu%d: %s\n", vgpuIdValue,
+                  strerror(errno));
         return EDSS_CAL_FILE_NOT_FOUND;
     }
 

@@ -138,7 +138,6 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                     }
                     break;
                 }
-                break;
             }
 
             debug!("Finished RPC handler.");
