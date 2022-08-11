@@ -2,6 +2,7 @@
 #include "../inc/edssCALInterface.h"
 #include "../inc/edssCapture.h"
 #include "../inc/edssInterfaceInternal.h"
+#include "../inc/edssLog.h"
 
 #include <ck_ring.h>
 #include <dlfcn.h>
@@ -93,18 +94,23 @@ EDSS_STATUS edssOpenCAL(char calPluginName[100], StrMap *calOptionDict) {
 
     int ret;
     void *calHandle;
+    EDSS_LOGD("edssOpenCAL called with calPluginName %s\n", calPluginName);
 
     calHandle = dlopen(calPluginName, RTLD_LAZY);
     if (!calHandle) {
+        // TODO macro these printfs
+        EDSS_LOGE("edssOpenCAL dlopen failed, invalid handle\n");
         return EDSS_INVALID_CAL;
     }
 
     calPlugin = dlsym(calHandle, "calPlugin");
     if (!calPlugin) {
+        EDSS_LOGE("edssOpenCAL dlsym failed\n");
         return EDSS_INVALID_CAL;
     }
 
     if ((ret = calPlugin->calOptions(calOptionDict)) != EDSS_OK) {
+        EDSS_LOGE("edssOpenCAL failed to retreive calOptions\n");
         return ret;
     }
     return EDSS_OK;
