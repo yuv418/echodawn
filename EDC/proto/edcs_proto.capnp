@@ -12,8 +12,8 @@ interface EdcsProtocol {
     }
 
     struct EdcsStreamParams {
-        framerate @0 :Int32;
-        bitrate @1 :Int32;
+        framerate @0 :UInt32;
+        bitrate @1 :UInt32;
     }
 
     enum EdcsMessageType {

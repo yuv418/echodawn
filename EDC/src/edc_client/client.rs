@@ -14,7 +14,10 @@ use std::io::BufReader;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::edc_client::options::ClientOptions;
+use crate::edc_client::{
+    config::ClientConfig,
+    edcs_proto_capnp::edcs_protocol::{edcs_message, EdcsMessageType},
+};
 
 pub struct EdcClient {
     reader: Compat<ReadHalf<TlsStream<TcpStream>>>,
@@ -23,7 +26,7 @@ pub struct EdcClient {
 
 impl EdcClient {
     pub async fn new(config_file_path: &Path) -> anyhow::Result<EdcClient> {
-        let client_options: ClientOptions = toml::from_str(
+        let client_options: ClientConfig = toml::from_str(
             &fs::read_to_string(config_file_path)
                 .with_context(|| "Failed to unwrap the config file name")?,
         )
@@ -75,7 +78,7 @@ impl EdcClient {
     }
 
     // Handle sending RPCs to the EDCS
-    pub async fn send_message(
+    async fn send_message(
         &mut self,
         msg: message::Builder<message::HeapAllocator>,
     ) -> anyhow::Result<message::Reader<OwnedSegments>> {
@@ -85,5 +88,19 @@ impl EdcClient {
         serialize::read_message(&mut self.reader, ReaderOptions::default())
             .await
             .with_context(|| "Failed to read response from EDCS")
+    }
+
+    pub async fn setup_stream(
+        &mut self,
+        framerate: u32,
+        bitrate: u32,
+    ) -> anyhow::Result<message::Reader<OwnedSegments>> {
+        let mut response = message::Builder::new_default();
+        let mut message: edcs_message::Builder = response.init_root();
+        message.set_message_type(EdcsMessageType::SetupStream);
+        let mut setup_stream_params = message.init_payload().init_setup_stream_params();
+        setup_stream_params.set_bitrate(bitrate);
+        setup_stream_params.set_framerate(framerate);
+        self.send_message(response).await
     }
 }

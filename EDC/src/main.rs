@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use clap::Parser;
 
 use edc::edc_client::client::EdcClient;
+use log::info;
 
 #[derive(Parser, Debug)]
 struct CLIArgs {
@@ -46,6 +47,9 @@ async fn main() -> anyhow::Result<()> {
         })
         .init();
 
+    info!("Starting up client!");
     let client = EdcClient::new(&args.config_file_path).await?;
+    info!("Client connected to server");
+
     Ok(())
 }

@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use super::{config, edcs_proto_capnp};
+use super::config;
+use super::edcs_proto::{edcs_response, EdcsMessage, EdcsMessageType, EdcsResponse, EdcsStatus};
 use crate::edss_safe::edss::EdssAdapter;
-use capnp::message;
-use edcs_proto_capnp::edcs_protocol::{edcs_message, edcs_response, EdcsMessageType, EdcsStatus};
 
 #[derive(Debug, Default)]
 pub struct EdcsHandler {
@@ -14,16 +13,15 @@ impl EdcsHandler {
     pub fn handle_message(
         &mut self,
         cfg: Arc<config::EdcsConfig>,
-        msg: edcs_message::Reader,
-    ) -> capnp::Result<message::Builder<message::HeapAllocator>> {
+        msg: EdcsMessage,
+    ) -> anyhow::Result<EdcsResponse> {
         // Handle the input
 
-        let mut response = message::Builder::new_default();
-        let mut message_response = response.init_root::<edcs_response::Builder>();
+        let mut response_payload = None;
         let mut edcs_status = EdcsStatus::Ok;
 
-        match msg.get_message_type() {
-            Ok(EdcsMessageType::SetupStream) => {
+        match msg.message_type() {
+            EdcsMessageType::SetupStream => {
                 // Initialize EDSS, don't start stream.
 
                 // TODO stop hardcoding random stuff.
@@ -39,35 +37,27 @@ impl EdcsHandler {
                     Ok(adapter) => self.adapter = Some(adapter),
                     Err(e) => {
                         edcs_status = EdcsStatus::EdssErr;
-                        message_response
-                            .reborrow()
-                            .get_payload()
-                            .set_edss_err_params(e.0);
+                        response_payload = Some(edcs_response::Payload::EdssErrData(e.0));
                     }
                 };
             }
-            Ok(EdcsMessageType::StartStream) => {
+            EdcsMessageType::StartStream => {
                 if let Some(adapter) = &self.adapter {
                     if let Err(e) = adapter.init_server() {
                         edcs_status = EdcsStatus::EdssErr;
-                        message_response
-                            .reborrow()
-                            .get_payload()
-                            .set_edss_err_params(e.0);
+                        response_payload = Some(edcs_response::Payload::EdssErrData(e.0));
                     }
                 } else {
                     edcs_status = EdcsStatus::UninitialisedEdss;
                 }
             }
-            Ok(EdcsMessageType::CloseStream) => {}
-            Ok(EdcsMessageType::UpdateStream) => {}
-            Err(capnp::NotInSchema(num)) => {
-                println!("Invalid message type! {}", num)
-            }
+            EdcsMessageType::CloseStream | EdcsMessageType::UpdateStream => {}
         }
 
         // Send out the response
-        message_response.set_status(edcs_status);
-        Ok(response)
+        Ok(EdcsResponse {
+            status: edcs_status as i32, // NOTE is there a better way to do this?
+            payload: response_payload,
+        })
     }
 }

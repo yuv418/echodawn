@@ -1,27 +1,26 @@
 use super::config::EdcsConfig;
-use super::edcs_proto_capnp;
-use super::handler;
+use super::edcs_proto::EdcsMessage;
 use super::handler::EdcsHandler;
 use anyhow::anyhow;
 use anyhow::Context;
-use capnp::message::ReaderOptions;
-use capnp_futures::serialize;
-use edcs_proto_capnp::edcs_protocol;
 use log::debug;
+use log::error;
 use log::info;
+use prost::decode_length_delimiter;
+use prost::encode_length_delimiter;
+use prost::Message;
 use rustls_pemfile::{certs, pkcs8_private_keys};
-use std::env;
 use std::fs;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
+use tokio::io::AsyncReadExt;
 use tokio::io::{split, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio_rustls::rustls::{self, Certificate, PrivateKey};
 use tokio_rustls::TlsAcceptor;
-use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 // Somewhat inspired by https://github.com/tokio-rs/tls/blob/master/tokio-rustls/examples/server/src/main.rs
 
 // get_certs and get_keys are directly copied from the tokio-rs codebase since they are just boilerplate.
@@ -75,62 +74,56 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
     info!("Server bound and main loop starting");
     loop {
         let (stream, peer_addr) = listener.accept().await?;
+
+        info!("Received connection from peer with address {}", peer_addr);
+
         let acceptor = acceptor.clone();
 
         let cfg_copy = Arc::clone(&edcs_config);
         let handler_copy = Arc::clone(&handler);
         let handle_future = async move {
-            debug!("Received connection from peer");
-
-            let mut stream = acceptor.accept(stream).await?;
-            let (reader, mut writer) = split(stream);
+            let stream = acceptor.accept(stream).await?;
+            let (mut reader, mut writer) = split(stream);
             // Handle things with stream.read_buf/write_buf
 
-            let message_reader = serialize::read_message(reader.compat(), ReaderOptions::default())
-                .await
-                .map_err(|e| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        format!("Failed to deserialize the EDCS message + payload: {:#?}", e),
-                    )
-                })?;
+            // Get the length delimiter
+            let mut delimiter_buf: Vec<u8> = vec![0; 10]; // I hate heap allocations
+            reader.read_exact(&mut delimiter_buf).await?;
+            let pb_len = decode_length_delimiter(&delimiter_buf[..])
+                .with_context(|| "Failed to decode the protobuf length delimiter")?;
 
-            let edcs_message = message_reader
-                .get_root::<edcs_protocol::edcs_message::Reader>()
-                .map_err(|e| {
-                    io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("Failed to get root of EDCS message: {:#?}", e),
-                    )
-                })?;
+            let mut message_buffer = vec![0; pb_len];
+            reader.read_exact(&mut message_buffer).await?;
+
+            let edcs_message = EdcsMessage::decode_length_delimited(&message_buffer[..])?;
 
             {
                 // So that the locked mutex gets unlocked when it goes out of scope
-                let mut handler_unlock = handler_copy.lock().map_err(|e| {
+                let mut handler_unlock = handler_copy.lock().map_err(|_| {
                     io::Error::new(io::ErrorKind::Other, "Failed to unlock EDCS handler mutex")
                 })?;
                 let edcs_response = handler_unlock
                     .handle_message(cfg_copy, edcs_message)
-                    .map_err(|e| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData, // what error kind are we exactly supposed to use here?
-                            format!("Failed to get EDCS response: {:#?}", e),
-                        )
-                    })?;
+                    .with_context(|| "Failed to get EDCS response")?;
 
                 // Write the response data after flushing the writer
                 writer.flush().await?;
-                serialize::write_message(writer.compat_write(), &edcs_response)
-                    .await
-                    .map_err(|e| {
-                        io::Error::new(
-                            io::ErrorKind::Other,
-                            format!("Failed to write the EDCS response to the client {:#?}", e),
-                        )
-                    })?;
+
+                // TODO is this the most efficient way to do this?
+                // The first ten bytes are the length delimiter, then the next bit is the actual protobuf
+                // Just reuse the old delimiter_buf to spare ourselves of expensive heap allocations
+                encode_length_delimiter(edcs_response.encoded_len(), &mut delimiter_buf)?;
+
+                let mut response_buffer = edcs_response.encode_length_delimited_to_vec();
+                writer.write_all(&mut response_buffer).await?;
             }
 
-            Ok(()) as io::Result<()>
+            Ok(()) as anyhow::Result<()>
         };
+        tokio::task::spawn_local(async move {
+            if let Err(e) = handle_future.await {
+                error!("Future handle (main loop) failed with {:?}", e)
+            }
+        });
     }
 }
