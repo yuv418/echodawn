@@ -1,6 +1,10 @@
+#pragma once
+
 #include "edssCALInterface.h"
 
 #include <ck_ring.h>
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
 #include <libavutil/frame.h>
 #include <semaphore.h>
 
@@ -23,4 +27,14 @@ struct captureThreadArgs {
     fbEncoderCtx_t *fbEncoderCtx;
     calPlugin_t *calPlugin;
     calConfig_t *calCfg;
+};
+
+struct streamThreadArgs {
+    captureCtx_t *captureCtx;
+    fbEncoderCtx_t *fbEncoderCtx;
+    calConfig_t *calCfg;
+    AVCodecContext *cdcCtx;
+    AVPacket *encPkt;
+    AVStream *avS;
+    AVFormatContext *fmtCtx;
 };

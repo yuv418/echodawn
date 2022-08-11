@@ -17,7 +17,7 @@ fn main() {
     // https://stackoverflow.com/questions/61810740/log-source-file-and-line-numbers
 
     env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Trace)
+        .filter_level(log::LevelFilter::Debug)
         .format(|buf, record| {
             use env_logger::fmt::Color;
             use log::Level;

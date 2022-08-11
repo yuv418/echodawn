@@ -20,36 +20,17 @@
 
 #define TIME_SIZE 40 // %Y-%m-%dT%H:%M%SZ
 
-char *logged_time;
-
-char *log_time() {
-    char *buf;
-    time_t now;
-    struct tm *localnow;
-    int ret;
-
-    buf = (char *)malloc(TIME_SIZE);
-    time(&now);
-    localnow = localtime(&now);
-
-    if ((ret = strftime(buf, TIME_SIZE, "%Y-%m-%dT%H:%M:%SZ", localnow))) {
-        return buf;
-    }
-    // This part should never happen
-    perror("strftime");
-    return NULL;
-}
-
+// We won't bother freeing the logged_time static in edssLog.c since it'll be
+// re-used anyway.
+char *log_time();
 // Inspired from
 // https://stackoverflow.com/questions/15549893/modify-printfs-via-macro-to-include-file-and-line-number-information
 
 // level contains both colour and level name
 #define EDSS_LOG(level, format, ...)                                           \
-    logged_time = log_time();                                                  \
     printf("[" COLOUR_BLACKTEXT COLOUR_GREEN "EDSS" COLOUR_RESET               \
            " " COLOUR_BLACKTEXT level COLOUR_RESET " %s %s:%d] " format,       \
-           logged_time, __FILE__, __LINE__, ##__VA_ARGS__);                    \
-    free(logged_time)
+           log_time(), __FILE__, __LINE__, ##__VA_ARGS__);
 
 #define EDSS_LOGE(format, ...)                                                 \
     EDSS_LOG(COLOUR_RED "ERROR", format, ##__VA_ARGS__)

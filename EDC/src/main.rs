@@ -21,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
     let args = CLIArgs::parse();
     // TODO share code between EDCS and EDC for these kinds of things
     env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Trace)
+        .filter_level(log::LevelFilter::Debug)
         .format(|buf, record| {
             use env_logger::fmt::Color;
             use log::Level;

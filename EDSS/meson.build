@@ -11,8 +11,9 @@ ck = dependency('ck')
 strmap = 'vendor/strmap/strmap.c'
 
 library('edss',
+           'src/edssLog.c',
            'src/edssInterface.c',
            'src/edssCapture.c',
-           'src/edssCapture.c',
+           'src/edssStream.c',
            strmap,
            dependencies: [avutil, avcodec, swscale, avformat, ck])
