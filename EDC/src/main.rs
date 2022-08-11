@@ -48,8 +48,10 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     info!("Starting up client!");
-    let client = EdcClient::new(&args.config_file_path).await?;
+    let mut client = EdcClient::new(&args.config_file_path).await?;
     info!("Client connected to server");
+    let response = client.setup_stream(60, 100000).await?;
+    info!("Client setup stream returned response {:#?}", response);
 
     Ok(())
 }

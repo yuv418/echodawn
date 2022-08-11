@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use log::debug;
+
 use super::config;
 use super::edcs_proto::{edcs_response, EdcsMessage, EdcsMessageType, EdcsResponse, EdcsStatus};
 use crate::edss_safe::edss::EdssAdapter;
@@ -24,6 +26,8 @@ impl EdcsHandler {
             EdcsMessageType::SetupStream => {
                 // Initialize EDSS, don't start stream.
 
+                debug!("HANDLER Setting up stream.");
+
                 // TODO stop hardcoding random stuff.
                 // TODO autogenerate a random key and return it through the response.
                 match EdssAdapter::new(
@@ -40,6 +44,8 @@ impl EdcsHandler {
                         response_payload = Some(edcs_response::Payload::EdssErrData(e.0));
                     }
                 };
+
+                debug!("HANDLER Finished setting up stream.");
             }
             EdcsMessageType::StartStream => {
                 if let Some(adapter) = &self.adapter {

@@ -6,8 +6,10 @@ use anyhow::Context;
 use log::debug;
 use log::error;
 use log::info;
+use log::trace;
 use prost::decode_length_delimiter;
 use prost::encode_length_delimiter;
+use prost::length_delimiter_len;
 use prost::Message;
 use rustls_pemfile::{certs, pkcs8_private_keys};
 use std::fs;
@@ -15,10 +17,10 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::Mutex;
 use tokio::io::AsyncReadExt;
 use tokio::io::{split, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio::sync::Mutex;
 use tokio_rustls::rustls::{self, Certificate, PrivateKey};
 use tokio_rustls::TlsAcceptor;
 // Somewhat inspired by https://github.com/tokio-rs/tls/blob/master/tokio-rustls/examples/server/src/main.rs
@@ -79,8 +81,8 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
 
         let acceptor = acceptor.clone();
 
-        let cfg_copy = Arc::clone(&edcs_config);
         let handler_copy = Arc::clone(&handler);
+        let cfg_copy = Arc::clone(&edcs_config);
         let handle_future = async move {
             let stream = acceptor.accept(stream).await?;
             let (mut reader, mut writer) = split(stream);
@@ -88,39 +90,61 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
 
             // Get the length delimiter
             let mut delimiter_buf: Vec<u8> = vec![0; 10]; // I hate heap allocations
-            reader.read_exact(&mut delimiter_buf).await?;
-            let pb_len = decode_length_delimiter(&delimiter_buf[..])
-                .with_context(|| "Failed to decode the protobuf length delimiter")?;
+            while let Ok(sz) = reader.read_exact(&mut delimiter_buf).await {
+                let pb_len = decode_length_delimiter(&delimiter_buf[..])
+                    .with_context(|| "Failed to decode the protobuf length delimiter")?;
 
-            let mut message_buffer = vec![0; pb_len];
-            reader.read_exact(&mut message_buffer).await?;
+                trace!(
+                    "Protobuf length delimiter slice is {:?}, size read is {}, pb_len is {}",
+                    &delimiter_buf[..],
+                    sz,
+                    pb_len
+                );
+                let mut message_buffer = vec![0; pb_len + 1];
+                while let Ok(_) = reader.read_exact(&mut message_buffer).await {
+                    trace!("Protobuf data {:?}", message_buffer);
+                    let edcs_message = EdcsMessage::decode_length_delimited(&message_buffer[..])?;
+                    debug!("EDCS Message {:#?}", edcs_message);
 
-            let edcs_message = EdcsMessage::decode_length_delimited(&message_buffer[..])?;
+                    {
+                        // So that the locked mutex gets unlocked when it goes out of scope
+                        let mut handler_unlock = handler_copy.lock().await;
+                        let edcs_response = handler_unlock
+                            .handle_message(Arc::clone(&cfg_copy), edcs_message)
+                            .with_context(|| "Failed to get EDCS response")?;
 
-            {
-                // So that the locked mutex gets unlocked when it goes out of scope
-                let mut handler_unlock = handler_copy.lock().map_err(|_| {
-                    io::Error::new(io::ErrorKind::Other, "Failed to unlock EDCS handler mutex")
-                })?;
-                let edcs_response = handler_unlock
-                    .handle_message(cfg_copy, edcs_message)
-                    .with_context(|| "Failed to get EDCS response")?;
+                        // Write the response data after flushing the writer
+                        writer.flush().await?;
 
-                // Write the response data after flushing the writer
-                writer.flush().await?;
+                        // TODO is this the most efficient way to do this?
+                        // The first ten bytes are the length delimiter, then the next bit is the actual protobuf
+                        let encoded_len = edcs_response.encoded_len();
+                        let mut send_delimiter_buf: Vec<u8> =
+                            vec![0; length_delimiter_len(encoded_len) - 1];
+                        encode_length_delimiter(
+                            edcs_response.encoded_len(),
+                            &mut send_delimiter_buf,
+                        )?;
+                        // Pad the buffer.
+                        while send_delimiter_buf.len() < 10 {
+                            send_delimiter_buf.push(0);
+                        }
+                        trace!("Delimiter buffer is {:?}", send_delimiter_buf);
+                        writer.write_all(&mut send_delimiter_buf).await?;
 
-                // TODO is this the most efficient way to do this?
-                // The first ten bytes are the length delimiter, then the next bit is the actual protobuf
-                // Just reuse the old delimiter_buf to spare ourselves of expensive heap allocations
-                encode_length_delimiter(edcs_response.encoded_len(), &mut delimiter_buf)?;
-
-                let mut response_buffer = edcs_response.encode_length_delimited_to_vec();
-                writer.write_all(&mut response_buffer).await?;
+                        let mut response_buffer = edcs_response.encode_length_delimited_to_vec();
+                        trace!("Response buffer is {:?}", response_buffer);
+                        writer.write_all(&mut response_buffer).await?;
+                    }
+                    break;
+                }
+                break;
             }
 
+            debug!("Finished RPC handler.");
             Ok(()) as anyhow::Result<()>
         };
-        tokio::task::spawn_local(async move {
+        tokio::spawn(async move {
             if let Err(e) = handle_future.await {
                 error!("Future handle (main loop) failed with {:?}", e)
             }

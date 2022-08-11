@@ -1,8 +1,7 @@
-use anyhow::Context;
-use capnp::message::{self, ReaderOptions};
-use capnp::serialize::OwnedSegments;
-use capnp_futures::serialize;
-use tokio::io::{split, ReadHalf, WriteHalf};
+use anyhow::{anyhow, Context};
+use log::{debug, trace};
+use prost::{decode_length_delimiter, encode_length_delimiter, length_delimiter_len, Message};
+use tokio::io::{split, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::rustls::{self, OwnedTrustAnchor};
@@ -16,12 +15,27 @@ use std::sync::Arc;
 
 use crate::edc_client::{
     config::ClientConfig,
-    edcs_proto_capnp::edcs_protocol::{edcs_message, EdcsMessageType},
+    edcs_proto::{edcs_message, EdcsMessage, EdcsMessageType, EdcsResponse, EdcsStreamParams},
 };
 
+struct NoCertVerify {}
+impl rustls::client::ServerCertVerifier for NoCertVerify {
+    fn verify_server_cert(
+        &self,
+        end_entity: &rustls::Certificate,
+        intermediates: &[rustls::Certificate],
+        server_name: &rustls::ServerName,
+        scts: &mut dyn Iterator<Item = &[u8]>,
+        ocsp_response: &[u8],
+        now: std::time::SystemTime,
+    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::ServerCertVerified::assertion())
+    }
+}
+
 pub struct EdcClient {
-    reader: Compat<ReadHalf<TlsStream<TcpStream>>>,
-    writer: Compat<WriteHalf<TlsStream<TcpStream>>>,
+    reader: ReadHalf<TlsStream<TcpStream>>,
+    writer: WriteHalf<TlsStream<TcpStream>>,
 }
 
 impl EdcClient {
@@ -50,10 +64,17 @@ impl EdcClient {
         });
         root_cert_store.add_server_trust_anchors(trust_anchors);
 
-        let config = rustls::ClientConfig::builder()
+        let mut config = rustls::ClientConfig::builder()
             .with_safe_defaults()
             .with_root_certificates(root_cert_store)
             .with_no_client_auth(); // again TODO, what does this mean?
+
+        // TODO: Trust individual certificates somehow
+        if client_options.disable_tls_verification {
+            config
+                .dangerous()
+                .set_certificate_verifier(Arc::new(NoCertVerify {}))
+        }
 
         let connector = TlsConnector::from(Arc::new(config));
         let stream = TcpStream::connect(
@@ -63,7 +84,7 @@ impl EdcClient {
         .with_context(|| "Failed to set up TCP stream")?;
 
         // Domain can also be an IP address, I think
-        let domain = rustls::ServerName::try_from(client_options.host.to_string().as_str())
+        let domain = rustls::ServerName::try_from(client_options.domain.as_str())
             .with_context(|| "Failed to get the TLS server name")?;
         let stream = connector
             .connect(domain, stream)
@@ -71,36 +92,61 @@ impl EdcClient {
             .with_context(|| "Failed to connect to the EDCS server")?;
 
         let (reader, writer) = split(stream);
-        Ok(EdcClient {
-            reader: reader.compat(),
-            writer: writer.compat_write(),
-        })
+        Ok(EdcClient { reader, writer })
     }
 
     // Handle sending RPCs to the EDCS
-    async fn send_message(
-        &mut self,
-        msg: message::Builder<message::HeapAllocator>,
-    ) -> anyhow::Result<message::Reader<OwnedSegments>> {
-        serialize::write_message(&mut self.writer, &msg)
-            .await
-            .with_context(|| "Failed to write serialized message to EDCS wire")?;
-        serialize::read_message(&mut self.reader, ReaderOptions::default())
-            .await
-            .with_context(|| "Failed to read response from EDCS")
+    async fn send_message(&mut self, msg: EdcsMessage) -> anyhow::Result<EdcsResponse> {
+        let delimiter_buflen = length_delimiter_len(msg.encoded_len());
+        let mut delimiter_buf: Vec<u8> = vec![0; delimiter_buflen - 1];
+        // Write length delimiter first
+        encode_length_delimiter(msg.encoded_len(), &mut delimiter_buf)?;
+
+        self.writer.flush().await?;
+        // Pad the delimiter buffer so it is 10 bytes in length
+        while delimiter_buf.len() < 10 {
+            delimiter_buf.push(0)
+        }
+        self.writer.write_all(&mut delimiter_buf).await?;
+
+        debug!(
+            "Writing length delimiter {:?}, encoded_len is {}",
+            delimiter_buf,
+            msg.encoded_len()
+        );
+
+        let mut msg_buf = msg.encode_length_delimited_to_vec();
+        trace!("Writing data {:?} to PB", msg_buf);
+        self.writer.write_all(&mut msg_buf).await?;
+
+        let mut resp_len = 0;
+        // Read response delimiter
+        while let Ok(_) = self.reader.read_exact(&mut delimiter_buf).await {
+            trace!("Read delimiter buf {:?}", delimiter_buf);
+            resp_len = decode_length_delimiter(&delimiter_buf[..])?;
+            let mut resp_buf = vec![0; resp_len + 1];
+            while let Ok(_) = self.reader.read_exact(&mut resp_buf).await {
+                return EdcsResponse::decode_length_delimited(&resp_buf[..])
+                    .with_context(|| "Failed to parse EDCS response");
+            }
+        }
+        trace!("Resp len is {}", resp_len);
+
+        Err(anyhow!("Did not read EDCS response"))
     }
 
     pub async fn setup_stream(
         &mut self,
         framerate: u32,
         bitrate: u32,
-    ) -> anyhow::Result<message::Reader<OwnedSegments>> {
-        let mut response = message::Builder::new_default();
-        let mut message: edcs_message::Builder = response.init_root();
-        message.set_message_type(EdcsMessageType::SetupStream);
-        let mut setup_stream_params = message.init_payload().init_setup_stream_params();
-        setup_stream_params.set_bitrate(bitrate);
-        setup_stream_params.set_framerate(framerate);
-        self.send_message(response).await
+    ) -> anyhow::Result<EdcsResponse> {
+        self.send_message(EdcsMessage {
+            message_type: EdcsMessageType::SetupStream as i32,
+            payload: Some(edcs_message::Payload::SetupStreamParams(EdcsStreamParams {
+                framerate,
+                bitrate,
+            })),
+        })
+        .await
     }
 }

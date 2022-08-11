@@ -1,4 +1,4 @@
 // TODO DRY this code
 #![allow(warnings, unused)] // Be quiet about annoying warnings
 
-include!(concat!(env!("OUT_DIR"), "/proto/edcs_proto_capnp.rs"));
+include!(concat!(env!("OUT_DIR"), "/edcs_protocol.rs"));
