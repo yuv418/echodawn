@@ -64,5 +64,8 @@ async fn main() -> anyhow::Result<()> {
     let response = client.setup_stream(data_map).await?;
     info!("Client setup stream returned response {:#?}", response);
 
+    let response = client.init_stream().await?;
+    info!("Client setup stream returned response {:#?}", response);
+
     Ok(())
 }

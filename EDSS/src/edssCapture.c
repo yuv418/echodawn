@@ -1,6 +1,7 @@
 #include "../inc/edssCapture.h"
 #include "../inc/edssCALInterface.h"
 #include "../inc/edssInterfaceInternal.h"
+#include "../inc/edssLog.h"
 
 #include <stdio.h>
 
@@ -13,6 +14,7 @@ void *edssCaptureThreadFunction(void *threadArgs) {
     calPlugin_t *calPlugin = args->calPlugin;
 
     int dataLen;
+
     // NOTE this 4 is hacky. It's just because BGRA is what was default in
     // testing. What if it's not this in the appropriate plugin. We have to
     // figure out the pixel size based on the pixel format provided in
@@ -28,6 +30,7 @@ void *edssCaptureThreadFunction(void *threadArgs) {
         .buffer = malloc(dataLen),
     };
 
+    EDSS_LOGI("Capture thread main loop starting\n");
     while (true) {
 
         captureData_t *data;
@@ -46,6 +49,7 @@ void *edssCaptureThreadFunction(void *threadArgs) {
 
         // TODO Add something better(?) to exit the thread.
         if (captureCtx->encodingFinished) {
+            EDSS_LOGW("encoding finished\n");
             break;
         }
 
@@ -59,8 +63,8 @@ void *edssCaptureThreadFunction(void *threadArgs) {
         if (!ck_ring_enqueue_spmc(
                 &captureCtx->frameRing,
                 (struct ck_ring_buffer *)&captureCtx->frameRingBuffer, data)) {
-            perror("ck_ring_enqueue_spmc");
-            printf("[capture thread] Capture enqueue frame failed!!\n");
+            EDSS_LOGW("ck_ring_enqueue_spmc: %s\n", strerror(errno));
+            EDSS_LOGW("Capture enqueue frame failed!!\n");
         }
 
         // tell the consumer that we have more data
@@ -70,6 +74,6 @@ void *edssCaptureThreadFunction(void *threadArgs) {
         nanosleep((const struct timespec[]){{0, 16600000L}},
                   NULL); // wait for next frame
     }
-    printf("CAPTURE THREAD EXIT\n");
+    EDSS_LOGW("CAPTURE THREAD EXIT\n");
     return EDSS_OK;
 }

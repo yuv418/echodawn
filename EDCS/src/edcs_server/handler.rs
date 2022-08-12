@@ -71,45 +71,61 @@ impl EdcsHandler {
 
                 debug!("HANDLER Finished setting up stream.");
             }
-            EdcsMessageType::SetupStream => {
+            EdcsMessageType::SetupStream | EdcsMessageType::StartStream => {
                 // TODO: DRY here
                 if let Some(adapter) = &mut self.adapter {
-                    adapter.cal_option_dict = match msg.payload {
-                        Some(edcs_message::Payload::SetupStreamParams(d)) => d.cal_option_dict,
-                        // TODO keep it dry (we will have to check requestss for all message types)
-                        _ => {
-                            return Ok(EdcsResponse {
-                                status: EdcsStatus::InvalidRequest as i32,
-                                payload: Some(edcs_response::Payload::InvalidRequestData(
-                                    "The given payload is not of type SetupEdcsParams".to_string(),
-                                )),
-                            })
-                        }
-                    };
-                    match adapter.init_server() {
-                        Ok(_) => {
-                            response_payload = Some(edcs_response::Payload::SetupStreamData(
-                                EdcsSetupStreamData {
-                                    out_stream_params: Some(EdcsStreamParams {
-                                        framerate: adapter.framerate,
-                                        bitrate: adapter.bitrate,
+                    match msg.message_type() {
+                        EdcsMessageType::SetupStream => {
+                            adapter.cal_option_dict =
+                                match msg.payload {
+                                    Some(edcs_message::Payload::SetupStreamParams(d)) => {
+                                        d.cal_option_dict
+                                    }
+                                    // TODO keep it dry (we will have to check requestss for all message types)
+                                    _ => return Ok(EdcsResponse {
+                                        status: EdcsStatus::InvalidRequest as i32,
+                                        payload: Some(edcs_response::Payload::InvalidRequestData(
+                                            "The given payload is not of type SetupEdcsParams"
+                                                .to_string(),
+                                        )),
                                     }),
-                                    sdp: adapter.sdp.clone().unwrap(), // Guaranteed to be Some at this point
-                                },
-                            ))
+                                };
+                            match adapter.init_server() {
+                                Ok(_) => {
+                                    response_payload =
+                                        Some(edcs_response::Payload::SetupStreamData(
+                                            EdcsSetupStreamData {
+                                                out_stream_params: Some(EdcsStreamParams {
+                                                    framerate: adapter.framerate,
+                                                    bitrate: adapter.bitrate,
+                                                }),
+                                                sdp: adapter.sdp.clone().unwrap(), // Guaranteed to be Some at this point
+                                            },
+                                        ))
+                                }
+                                Err(e) => {
+                                    edcs_status = EdcsStatus::EdssErr;
+                                    response_payload =
+                                        Some(edcs_response::Payload::EdssErrData(e.0));
+                                }
+                            }
                         }
-                        Err(e) => {
-                            edcs_status = EdcsStatus::EdssErr;
-                            response_payload = Some(edcs_response::Payload::EdssErrData(e.0));
-                        }
-                    }
+                        EdcsMessageType::StartStream => match adapter.init_streaming() {
+                            Ok(_) => {
+                                response_payload = None;
+                            }
+                            Err(e) => {
+                                edcs_status = EdcsStatus::EdssErr;
+                                response_payload = Some(edcs_response::Payload::EdssErrData(e.0));
+                            }
+                        },
+                        _ => {}
+                    };
                 } else {
                     edcs_status = EdcsStatus::UninitialisedEdss;
                 }
             }
-            EdcsMessageType::StartStream
-            | EdcsMessageType::CloseStream
-            | EdcsMessageType::UpdateStream => {
+            EdcsMessageType::CloseStream | EdcsMessageType::UpdateStream => {
                 todo!()
             }
         }

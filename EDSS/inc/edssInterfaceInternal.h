@@ -28,13 +28,3 @@ struct captureThreadArgs {
     calPlugin_t *calPlugin;
     calConfig_t *calCfg;
 };
-
-struct streamThreadArgs {
-    captureCtx_t *captureCtx;
-    fbEncoderCtx_t *fbEncoderCtx;
-    calConfig_t *calCfg;
-    AVCodecContext *cdcCtx;
-    AVPacket *encPkt;
-    AVStream *avS;
-    AVFormatContext *fmtCtx;
-};

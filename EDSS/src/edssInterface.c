@@ -2,8 +2,8 @@
 #include "../inc/edssCALInterface.h"
 #include "../inc/edssCapture.h"
 #include "../inc/edssInterfaceInternal.h"
+
 #include "../inc/edssLog.h"
-#include "../inc/edssStream.h"
 
 #include <ck_ring.h>
 #include <dlfcn.h>
@@ -22,9 +22,9 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-static fbEncoderCtx_t fbEncoderCtx;
+static fbEncoderCtx_t *fbEncoderCtx;
 static captureCtx_t captureCtx;
-static calConfig_t calCfg;
+static calConfig_t *calCfg;
 static pthread_t captureTh;
 static pthread_t streamTh;
 static calPlugin_t *calPlugin;
@@ -34,34 +34,35 @@ static AVCodecContext *cdcCtx;
 static AVPacket *encPkt;
 static AVStream *avS;
 static AVFormatContext *fmtCtx;
-
 #define SDP_BUFLEN 3000
 
-EDSS_STATUS edssInterfaceSetupSwscale(edssConfig_t *edssCfg) {
+EDSS_STATUS
+edssInterfaceSetupSwscale(edssConfig_t *edssCfg) {
 
     // avpicture_alloc(vgpuFbEncoderCtx->picToEncode, AV_PIX_FMT_YUV420P,
     // IMGBUF_WIDTH, IMGBUF_HEIGHT);
-    fbEncoderCtx.picToEncode = av_frame_alloc();
+    EDSS_LOGD("Begin edssInterfaceSetupSwscale\n");
+    fbEncoderCtx = malloc(sizeof(fbEncoderCtx_t));
+    fbEncoderCtx->picToEncode = av_frame_alloc();
 
-    fbEncoderCtx.picToEncode->format = AV_PIX_FMT_YUV420P;
-    fbEncoderCtx.picToEncode->width = calCfg.width;
-    fbEncoderCtx.picToEncode->height = calCfg.height;
+    fbEncoderCtx->picToEncode->format = AV_PIX_FMT_YUV420P;
+    fbEncoderCtx->picToEncode->width = calCfg->width;
+    fbEncoderCtx->picToEncode->height = calCfg->height;
 
     int ret;
     ret = av_image_alloc(
-        fbEncoderCtx.picToEncode->data, fbEncoderCtx.picToEncode->linesize,
-        fbEncoderCtx.picToEncode->width, fbEncoderCtx.picToEncode->height,
-        fbEncoderCtx.picToEncode->format, 1);
+        fbEncoderCtx->picToEncode->data, fbEncoderCtx->picToEncode->linesize,
+        fbEncoderCtx->picToEncode->width, fbEncoderCtx->picToEncode->height,
+        fbEncoderCtx->picToEncode->format, 1);
     if (ret < 0) {
         return EDSS_LIBAV_FAILURE;
     }
 
-    fbEncoderCtx.swsCtx =
-        sws_getContext(calCfg.width, calCfg.height,
-                       calCfg.pixFmt, // input width and height
-                       calCfg.width, calCfg.height,
-                       AV_PIX_FMT_YUV420P, // output width and height
-                       SWS_BICUBIC, NULL, NULL, NULL);
+    fbEncoderCtx->swsCtx = sws_getContext(
+        calCfg->width, calCfg->height, calCfg->pixFmt, // input width and height
+        calCfg->width, calCfg->height,
+        AV_PIX_FMT_YUV420P, // output width and height
+        SWS_BICUBIC, NULL, NULL, NULL);
 
     return EDSS_OK;
 }
@@ -121,8 +122,8 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg, char **sdpBuffer) {
     // Copy options to already-initialized CAL. TODO check to make sure that CAL
     // has already been initialised.
     int ret;
-    if ((ret = calPlugin->calInit(edssCfg->calOptionDict, &calCfg)) !=
-        EDSS_OK) {
+    calCfg = malloc(sizeof(calConfig_t));
+    if ((ret = calPlugin->calInit(edssCfg->calOptionDict, calCfg)) != EDSS_OK) {
         return ret;
     }
 
@@ -163,6 +164,7 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg, char **sdpBuffer) {
         return EDSS_LIBAV_FAILURE;
     }
     cdcCtx = avcodec_alloc_context3(cdc);
+    EDSS_LOGD("cdcCtx is %p\n", cdcCtx);
     if (cdcCtx < 0) {
         EDSS_LOGE("Failed to allocate AVCodecContext\n");
         return EDSS_LIBAV_FAILURE;
@@ -173,21 +175,27 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg, char **sdpBuffer) {
         return EDSS_LIBAV_FAILURE;
     }
 
+    ret = edssInterfaceSetupSwscale(edssCfg);
+    if (ret > 0) {
+        EDSS_LOGE("Failed to set up AVFrame for swscale\n");
+        return EDSS_LIBAV_FAILURE;
+    }
+
     cdcCtx->gop_size = 60; // TODO optimize these values.
     cdcCtx->max_b_frames = 0;
-    cdcCtx->height = calCfg.height;
-    cdcCtx->width = calCfg.width;
+    cdcCtx->height = calCfg->height;
+    cdcCtx->width = calCfg->width;
     cdcCtx->pix_fmt = AV_PIX_FMT_YUV420P; // TODO do we want to be able to
                                           // change this to YUV444 at runtime?
     cdcCtx->bit_rate = 10000000; // TODO this must be adjusted based on the
                                  // quality of the network.
     cdcCtx->framerate =
-        (AVRational){calCfg.framerate, 1}; // start with 60fps for now I guess
+        (AVRational){calCfg->framerate, 1}; // start with 60fps for now I guess
     cdcCtx->time_base = (AVRational){
         1,
         calCfg
-            .framerate}; // time_base = 1/framerate,
-                         // https://stackoverflow.com/questions/12234949/ffmpeg-time-unit-explanation-and-av-seek-frame-method?
+            ->framerate}; // time_base = 1/framerate,
+                          // https://stackoverflow.com/questions/12234949/ffmpeg-time-unit-explanation-and-av-seek-frame-method?
     av_opt_set(cdcCtx->priv_data, "preset", "ultrafast", 0);
     av_opt_set(cdcCtx->priv_data, "tune", "zerolatency", 0);
 
@@ -209,9 +217,9 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg, char **sdpBuffer) {
     // screen.
 
     ret = edssCaptureInit();
-    if (ret < 0) {
+    if (ret > 0) {
         // The error message was already printed. (again again)
-        return 1;
+        return ret;
     }
 
     /*
@@ -259,35 +267,101 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg, char **sdpBuffer) {
     AVFormatContext *ac[] = {fmtCtx};
     av_sdp_create(ac, 1, *sdpBuffer, SDP_BUFLEN);
 
-    // start the capture thread
     return EDSS_OK;
+}
+
+int fbBgraToYuv(calConfig_t *calCfg, fbEncoderCtx_t *fbEncoderCtx) {
+    int stride[1] = {calCfg->width * 4}; // for alpha channel
+    // printf("beginning sws_scale\n");
+    // printf("ending sws_scale\n");
+    return sws_scale(fbEncoderCtx->swsCtx,
+                     (const uint8_t *const *)&calCfg->frame, stride, 0,
+                     calCfg->height, fbEncoderCtx->picToEncode->data,
+                     fbEncoderCtx->picToEncode->linesize);
+}
+
+// For some reason, if you put this function in another file and create
+// another set of thread parameters, the _second_ thread to get initialised
+// will have a corrupted set of thread parameters, causing random segfaults.
+// TODO: Move this function to another file. HOW?
+void *edssStreamThreadFunction(void *threadArgs) {
+
+    int ret;
+    int totalFramesEncoded;
+    captureData_t *copiedFbPointer;
+
+    fbEncoderCtx->picToEncode->pts = 0;
+    totalFramesEncoded = 0;
+
+    EDSS_LOGI("Stream thread main loop starting\n");
+    while (true) {
+        // Wait for new frames. not a binary semaphore so it'll keep encoding
+        // till we have no more frames to encode.
+
+        sem_wait(&captureCtx.bufferSem);
+        // TODO the max queue size is 2. Make sure it is actually 2.
+        if (ck_ring_dequeue_spmc(
+                &captureCtx.frameRing,
+                (struct ck_ring_buffer *)&captureCtx.frameRingBuffer,
+                &copiedFbPointer)) {
+
+            pthread_mutex_lock(&copiedFbPointer->mutex);
+            fbBgraToYuv(calCfg, fbEncoderCtx);
+            pthread_mutex_unlock(&copiedFbPointer->mutex);
+
+            ret = avcodec_send_frame(cdcCtx, fbEncoderCtx->picToEncode);
+
+            if (ret < 0) {
+                EDSS_LOGE("Failed to send AVFrame to encoder\n");
+                return (void *)EDSS_ENCODE_FAILURE;
+            }
+
+            while (ret >= 0) {
+                ret = avcodec_receive_packet(cdcCtx, encPkt);
+                // printf("encoding packet with return %d\n", ret);
+                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+                    // fprintf(stderr, "EAGAIN or EOF from
+                    // avcodec_receive_packet\n");
+                    break;
+                } else if (ret < 0) {
+                    EDSS_LOGE("Failed to receive AVPacket\n");
+                    return (void *)EDSS_ENCODE_FAILURE;
+                }
+                // encPkt->duration = avS->time_base.den / avS->time_base.num /
+                // 60 * 1;
+                av_packet_rescale_ts(encPkt, (AVRational){1, calCfg->framerate},
+                                     avS->time_base);
+                av_interleaved_write_frame(fmtCtx, encPkt);
+                av_packet_unref(encPkt);
+            }
+            fbEncoderCtx->picToEncode->pts++;
+            totalFramesEncoded++; // TODO why not just use pts?
+
+        } else {
+            EDSS_LOGW("dequeue failed, continuing!!\n"); // FIX THIS!!
+        }
+    }
+
+    return (void *)EDSS_OK;
 }
 
 EDSS_STATUS edssInitStreaming() {
 
     struct captureThreadArgs ctArgs;
-    struct streamThreadArgs sArgs;
 
-    ctArgs.captureCtx = &captureCtx;
-    ctArgs.fbEncoderCtx = &fbEncoderCtx;
+    ck_ring_init(&captureCtx.frameRing, 2);
+
     ctArgs.calPlugin = calPlugin;
+    ctArgs.fbEncoderCtx = fbEncoderCtx;
+    ctArgs.captureCtx = &captureCtx;
+    ctArgs.calCfg = calCfg;
 
-    if (pthread_create(&captureTh, NULL, &edssCaptureThreadFunction,
-                       (void *)&ctArgs) != 0) {
+    if (pthread_create(&captureTh, NULL, &edssCaptureThreadFunction, &ctArgs) !=
+        0) {
         EDSS_LOGE("capture thread pthread_create failed %s", strerror(errno));
         return EDSS_PTHREAD_FAILURE;
     }
-
-    sArgs.avS = avS;
-    sArgs.calCfg = &calCfg;
-    sArgs.captureCtx = &captureCtx;
-    sArgs.cdcCtx = cdcCtx;
-    sArgs.encPkt = encPkt;
-    sArgs.fbEncoderCtx = &fbEncoderCtx;
-    sArgs.fmtCtx = fmtCtx;
-
-    if (pthread_create(&streamTh, NULL, &edssStreamThreadFunction,
-                       (void *)&sArgs) != 0) {
+    if (pthread_create(&streamTh, NULL, &edssStreamThreadFunction, NULL) != 0) {
         EDSS_LOGE("stream thread pthread_create failed %s", strerror(errno));
         return EDSS_PTHREAD_FAILURE;
     }

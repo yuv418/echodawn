@@ -167,4 +167,11 @@ impl EdcClient {
         })
         .await
     }
+    pub async fn init_stream(&mut self) -> anyhow::Result<EdcsResponse> {
+        self.send_message(EdcsMessage {
+            message_type: EdcsMessageType::StartStream as i32,
+            payload: None,
+        })
+        .await
+    }
 }
