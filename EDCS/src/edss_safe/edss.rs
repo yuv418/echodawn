@@ -19,11 +19,17 @@ pub struct EdssAdapter {
     pub srtp_out_params: String, // Maximum length is 32
     pub cal_option_dict: HashMap<String, String>,
     pub sdp: Option<String>, // Only Some if init_server was called
+    streaming: bool,
 }
 
 impl EdssAdapter {
     // I'm sure there is some standardised method of doing this, but I guess
     // I'm not really doing that.
+
+    // Prevent directly writing to this field, but allow access still.
+    pub fn streaming(&self) -> bool {
+        self.streaming
+    }
 
     fn to_c_struct(&self) -> edss_unsafe::edssConfig_t {
         // C requires the octets to be treated as little endian
@@ -131,6 +137,7 @@ impl EdssAdapter {
             srtp_out_params,
             cal_option_dict: Self::strmap_to_hashmap(config)?,
             sdp: None,
+            streaming: false,
         })
     }
     // TODO implement more robust error handling from these functions
@@ -153,15 +160,17 @@ impl EdssAdapter {
         }
         Ok(())
     }
-    pub fn init_streaming(&self) -> Result<(), EdssError> {
+    pub fn init_streaming(&mut self) -> Result<(), EdssError> {
         unsafe {
             edss_unsafe::edssInitStreaming();
+            self.streaming = true;
         }
         Ok(())
     }
-    pub fn close_streaming(&self) -> Result<(), EdssError> {
+    pub fn close_streaming(&mut self) -> Result<(), EdssError> {
         unsafe {
             edss_unsafe::edssCloseStreaming();
+            self.streaming = false;
         }
         Ok(())
     }

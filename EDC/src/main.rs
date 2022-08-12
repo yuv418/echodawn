@@ -2,11 +2,13 @@ extern crate edc;
 
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::Command;
+use std::time::Duration;
 
 use clap::Parser;
 
 use edc::edc_client::client::EdcClient;
-use edc::edc_client::edcs_proto::{edcs_response, EdcsResponse};
+use edc::edc_client::edcs_proto::{edcs_response, EdcsMessageType, EdcsResponse};
 use log::info;
 
 #[derive(Parser, Debug)]
@@ -52,7 +54,7 @@ async fn main() -> anyhow::Result<()> {
     let mut client = EdcClient::new(&args.config_file_path).await?;
     info!("Client connected to server");
 
-    let response = client.setup_edcs(60, 100000).await?;
+    let response = client.setup_edcs(60, 10000000).await?;
     info!("Client setup EDCS returned response {:#?}", response);
 
     let mut data_map = match response.payload {
@@ -64,8 +66,23 @@ async fn main() -> anyhow::Result<()> {
     let response = client.setup_stream(data_map).await?;
     info!("Client setup stream returned response {:#?}", response);
 
-    let response = client.init_stream().await?;
-    info!("Client setup stream returned response {:#?}", response);
+    if let Some(edcs_response::Payload::SetupStreamData(data)) = response.payload {
+        std::fs::write("test.sdp", data.sdp);
+        Command::new("mpv")
+            .arg("--profile=low-latency")
+            .arg("--rtsp-transport=lavf")
+            .arg("--hwdec=yes")
+            .arg("--untimed")
+            .arg("--no-demuxer-thread")
+            .arg("--vd-lavc-threads=1")
+            .arg("--video-latency-hacks=yes")
+            .arg("test.sdp")
+            .spawn()
+            .expect("Failed to spawn mpv");
+        // tokio::time::sleep(Duration::from_millis(5000)).await;
+        let response = client.init_stream().await?;
+        info!("Client setup stream returned response {:#?}", response);
+    }
 
     Ok(())
 }

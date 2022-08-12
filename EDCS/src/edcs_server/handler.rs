@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use log::debug;
+use log::{debug, info};
 
 use super::config::{self, EdcsConfig};
 use super::edcs_proto::{
@@ -46,8 +46,8 @@ impl EdcsHandler {
                 // TODO autogenerate a random key and return it through the response.
                 match EdssAdapter::new(
                     cfg.edss_config.plugin_name.clone(),
-                    cfg.ip,
-                    cfg.port,
+                    cfg.edss_config.ip,
+                    cfg.edss_config.port,
                     stream_params.bitrate,
                     stream_params.framerate,
                 ) {
@@ -110,15 +110,23 @@ impl EdcsHandler {
                                 }
                             }
                         }
-                        EdcsMessageType::StartStream => match adapter.init_streaming() {
-                            Ok(_) => {
-                                response_payload = None;
+                        EdcsMessageType::StartStream => {
+                            if !adapter.streaming() {
+                                info!("Initialising streaming");
+                                match adapter.init_streaming() {
+                                    Ok(_) => {
+                                        response_payload = None;
+                                    }
+                                    Err(e) => {
+                                        edcs_status = EdcsStatus::EdssErr;
+                                        response_payload =
+                                            Some(edcs_response::Payload::EdssErrData(e.0));
+                                    }
+                                }
+                            } else {
+                                edcs_status = EdcsStatus::StreamAlreadyStarted;
                             }
-                            Err(e) => {
-                                edcs_status = EdcsStatus::EdssErr;
-                                response_payload = Some(edcs_response::Payload::EdssErrData(e.0));
-                            }
-                        },
+                        }
                         _ => {}
                     };
                 } else {
