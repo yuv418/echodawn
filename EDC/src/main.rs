@@ -68,8 +68,11 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(edcs_response::Payload::SetupStreamData(data)) = response.payload {
         std::fs::write("test.sdp", data.sdp);
+        // Enable the demuxer thread, otherwise mpv has lots of video smearing
         Command::new("mpv")
             .arg("--profile=low-latency")
+            .arg("--video-latency-hacks=yes")
+            .arg("--vd-lavc-threads=1")
             .arg("--no-cache")
             .arg("--untimed")
             .arg("--hwdec=auto-safe")
