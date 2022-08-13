@@ -299,7 +299,15 @@ void *edssStreamThreadFunction(void *threadArgs) {
         // Wait for new frames. not a binary semaphore so it'll keep encoding
         // till we have no more frames to encode.
 
+        // TODO put this in a place where a deadlock doesn't happen
+
         sem_wait(&captureCtx.bufferSem);
+
+        if (captureCtx.encodingFinished) {
+            EDSS_LOGW("streaming finished\n");
+            break;
+        }
+
         // TODO the max queue size is 2. Make sure it is actually 2.
         if (ck_ring_dequeue_spmc(
                 &captureCtx.frameRing,
@@ -343,6 +351,7 @@ void *edssStreamThreadFunction(void *threadArgs) {
         }
     }
 
+    EDSS_LOGW("ENCODER THREAD EXIT\n");
     return (void *)EDSS_OK;
 }
 
@@ -352,6 +361,7 @@ EDSS_STATUS edssInitStreaming() {
 
     ck_ring_init(&captureCtx.frameRing, 2);
 
+    EDSS_LOGD("here\n");
     ctArgs.calPlugin = calPlugin;
     ctArgs.fbEncoderCtx = fbEncoderCtx;
     ctArgs.captureCtx = &captureCtx;
@@ -393,6 +403,19 @@ EDSS_STATUS edssCloseStreaming() {
      * END ENCODING SECTION
      * -------------------------------------------------------------------------------------------
      */
+
+    // Free all the variables
+    free(calCfg);
+    free(fbEncoderCtx);
+    EDSS_LOGD("here\n");
+    calPlugin = NULL; // This is a pointer to a static variable in a shared
+                      // library, so you can't really free it IIUC
+    free(calPlugin);
+    av_free(opts);
+    av_free(fmtCtx);
+    av_free(avS);
+    av_free(cdcCtx);
+    av_free(encPkt);
 
     return EDSS_OK;
 }

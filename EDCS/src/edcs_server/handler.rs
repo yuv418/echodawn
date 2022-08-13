@@ -78,7 +78,9 @@ impl EdcsHandler {
                     }
                 }
             }
-            EdcsMessageType::SetupStream | EdcsMessageType::StartStream => {
+            EdcsMessageType::SetupStream
+            | EdcsMessageType::StartStream
+            | EdcsMessageType::CloseStream => {
                 // TODO: DRY here
 
                 if let Some(adapter) = &mut self.adapter {
@@ -138,13 +140,31 @@ impl EdcsHandler {
                                 edcs_status = EdcsStatus::StreamAlreadyStarted;
                             }
                         }
+                        EdcsMessageType::CloseStream => {
+                            if adapter.streaming() {
+                                match adapter.close_streaming() {
+                                    Err(e) => {
+                                        edcs_status = EdcsStatus::EdssErr;
+                                        response_payload =
+                                            Some(edcs_response::Payload::EdssErrData(e.0));
+                                    }
+                                    Ok(_) => {
+                                        // No more adapter, I guess
+                                        // When we having multiple clients connec to the same server, we will change this
+                                        self.adapter = None;
+                                    }
+                                }
+                            } else {
+                                edcs_status = EdcsStatus::StreamNotStarted;
+                            }
+                        }
                         _ => {}
                     };
                 } else {
                     edcs_status = EdcsStatus::UninitialisedEdss;
                 }
             }
-            EdcsMessageType::CloseStream | EdcsMessageType::UpdateStream => {
+            EdcsMessageType::UpdateStream => {
                 todo!()
             }
         }

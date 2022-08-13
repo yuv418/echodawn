@@ -18,6 +18,7 @@ enum EdcsStatus {
     STREAM_ALREADY_STARTED = 5;
     EDCS_ALREADY_SETUP = 6;
     STREAM_ALREADY_SETUP = 7;
+    STREAM_NOT_STARTED = 8;
 }
 
 message EdcsMessage {

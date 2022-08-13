@@ -63,7 +63,7 @@ pub const __STDC_IEC_60559_COMPLEX__: u32 = 201404;
 pub const __STDC_ISO_10646__: u32 = 201706;
 pub const __GNU_LIBRARY__: u32 = 6;
 pub const __GLIBC__: u32 = 2;
-pub const __GLIBC_MINOR__: u32 = 36;
+pub const __GLIBC_MINOR__: u32 = 35;
 pub const _SYS_CDEFS_H: u32 = 1;
 pub const __glibc_c99_flexarr_available: u32 = 1;
 pub const __LDOUBLE_REDIRECTS_TO_FLOAT128_ABI: u32 = 0;
@@ -294,7 +294,6 @@ pub const SOL_TLS: u32 = 282;
 pub const SOL_XDP: u32 = 283;
 pub const SOL_MPTCP: u32 = 284;
 pub const SOL_MCTP: u32 = 285;
-pub const SOL_SMC: u32 = 286;
 pub const SOMAXCONN: u32 = 4096;
 pub const _BITS_SOCKADDR_H: u32 = 1;
 pub const _SS_SIZE: u32 = 128;
@@ -384,7 +383,6 @@ pub const SO_BUSY_POLL_BUDGET: u32 = 70;
 pub const SO_NETNS_COOKIE: u32 = 71;
 pub const SO_BUF_LOCK: u32 = 72;
 pub const SO_RESERVE_MEM: u32 = 73;
-pub const SO_TXREHASH: u32 = 74;
 pub const SO_TIMESTAMP: u32 = 29;
 pub const SO_TIMESTAMPNS: u32 = 35;
 pub const SO_TIMESTAMPING: u32 = 37;
@@ -2804,15 +2802,6 @@ extern "C" {
         __param: *mut ::std::os::raw::c_ushort,
         __buffer: *mut drand48_data,
     ) -> ::std::os::raw::c_int;
-}
-extern "C" {
-    pub fn arc4random() -> __uint32_t;
-}
-extern "C" {
-    pub fn arc4random_buf(__buf: *mut ::std::os::raw::c_void, __size: size_t);
-}
-extern "C" {
-    pub fn arc4random_uniform(__upper_bound: __uint32_t) -> __uint32_t;
 }
 extern "C" {
     pub fn malloc(__size: ::std::os::raw::c_ulong) -> *mut ::std::os::raw::c_void;

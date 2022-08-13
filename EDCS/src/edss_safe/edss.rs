@@ -178,6 +178,7 @@ impl EdssAdapter {
         unsafe {
             edss_unsafe::edssCloseStreaming();
             self.streaming = false;
+            self.stream_setup = false;
             // TODO destroy all stream variables
         }
         Ok(())

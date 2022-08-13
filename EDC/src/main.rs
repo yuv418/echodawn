@@ -54,6 +54,10 @@ async fn main() -> anyhow::Result<()> {
     let mut client = EdcClient::new(&args.config_file_path).await?;
     info!("Client connected to server");
 
+    // Kill any existing streams
+    let response = client.close_stream().await?;
+    info!("close stream response {:#?}", response);
+
     let response = client.setup_edcs(60, 10000000).await?;
     info!("Client setup EDCS returned response {:#?}", response);
 
@@ -67,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Client setup stream returned response {:#?}", response);
 
     if let Some(edcs_response::Payload::SetupStreamData(data)) = response.payload {
-        std::fs::write("test.sdp", data.sdp);
+        std::fs::write("test.sdp", data.sdp)?;
         // Enable the demuxer thread, otherwise mpv has lots of video smearing
         Command::new("mpv")
             .arg("--profile=low-latency")

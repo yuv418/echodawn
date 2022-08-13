@@ -74,6 +74,9 @@ void *edssCaptureThreadFunction(void *threadArgs) {
         nanosleep((const struct timespec[]){{0, 16600000L}},
                   NULL); // wait for next frame
     }
+    // Post the semaphore so the streaming thread can also exit, otherwise it
+    // will deadlock waiting for the semaphore.
+    sem_post(&captureCtx->bufferSem);
     EDSS_LOGW("CAPTURE THREAD EXIT\n");
     return EDSS_OK;
 }
