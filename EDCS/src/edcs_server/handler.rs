@@ -29,55 +29,63 @@ impl EdcsHandler {
             EdcsMessageType::SetupEdcs => {
                 // Initialize EDSS, don't start stream.
 
-                debug!("HANDLER Setting up EDCS.");
+                match self.adapter {
+                    None => {
+                        debug!("HANDLER Setting up EDCS.");
+                        let stream_params = match msg.payload {
+                            Some(edcs_message::Payload::SetupEdcsParams(p)) => p,
+                            _ => {
+                                return Ok(EdcsResponse {
+                                    status: EdcsStatus::InvalidRequest as i32,
+                                    payload: Some(edcs_response::Payload::InvalidRequestData(
+                                        "The given payload is not of type SetupEdcsParams"
+                                            .to_string(),
+                                    )),
+                                })
+                            }
+                        };
 
-                let stream_params = match msg.payload {
-                    Some(edcs_message::Payload::SetupEdcsParams(p)) => p,
-                    _ => {
-                        return Ok(EdcsResponse {
-                            status: EdcsStatus::InvalidRequest as i32,
-                            payload: Some(edcs_response::Payload::InvalidRequestData(
-                                "The given payload is not of type SetupEdcsParams".to_string(),
-                            )),
-                        })
+                        // TODO autogenerate a random key and return it through the response.
+                        match EdssAdapter::new(
+                            cfg.edss_config.plugin_name.clone(),
+                            cfg.edss_config.ip,
+                            cfg.edss_config.port,
+                            stream_params.bitrate,
+                            stream_params.framerate,
+                        ) {
+                            Ok(adapter) => {
+                                self.adapter = Some(adapter);
+                                response_payload = Some(edcs_response::Payload::SetupEdcsData(
+                                    EdcsSetupEdcsData {
+                                        cal_option_dict: self
+                                            .adapter
+                                            .as_ref()
+                                            .unwrap()
+                                            .cal_option_dict
+                                            .clone(), // unwrap will never fail here
+                                    },
+                                ));
+                            }
+                            Err(e) => {
+                                edcs_status = EdcsStatus::EdssErr;
+                                response_payload = Some(edcs_response::Payload::EdssErrData(e.0));
+                            }
+                        };
+                        debug!("HANDLER Finished setting up stream.");
                     }
-                };
-
-                // TODO autogenerate a random key and return it through the response.
-                match EdssAdapter::new(
-                    cfg.edss_config.plugin_name.clone(),
-                    cfg.edss_config.ip,
-                    cfg.edss_config.port,
-                    stream_params.bitrate,
-                    stream_params.framerate,
-                ) {
-                    Ok(adapter) => {
-                        self.adapter = Some(adapter);
-                        response_payload =
-                            Some(edcs_response::Payload::SetupEdcsData(EdcsSetupEdcsData {
-                                cal_option_dict: self
-                                    .adapter
-                                    .as_ref()
-                                    .unwrap()
-                                    .cal_option_dict
-                                    .clone(), // unwrap will never fail here
-                            }));
+                    Some(_) => {
+                        edcs_status = EdcsStatus::EdcsAlreadySetup;
                     }
-                    Err(e) => {
-                        edcs_status = EdcsStatus::EdssErr;
-                        response_payload = Some(edcs_response::Payload::EdssErrData(e.0));
-                    }
-                };
-
-                debug!("HANDLER Finished setting up stream.");
+                }
             }
             EdcsMessageType::SetupStream | EdcsMessageType::StartStream => {
                 // TODO: DRY here
+
                 if let Some(adapter) = &mut self.adapter {
                     match msg.message_type() {
                         EdcsMessageType::SetupStream => {
-                            adapter.cal_option_dict =
-                                match msg.payload {
+                            if !adapter.stream_setup() {
+                                adapter.cal_option_dict = match msg.payload {
                                     Some(edcs_message::Payload::SetupStreamParams(d)) => {
                                         d.cal_option_dict
                                     }
@@ -90,24 +98,27 @@ impl EdcsHandler {
                                         )),
                                     }),
                                 };
-                            match adapter.init_server() {
-                                Ok(_) => {
-                                    response_payload =
-                                        Some(edcs_response::Payload::SetupStreamData(
-                                            EdcsSetupStreamData {
-                                                out_stream_params: Some(EdcsStreamParams {
-                                                    framerate: adapter.framerate,
-                                                    bitrate: adapter.bitrate,
-                                                }),
-                                                sdp: adapter.sdp.clone().unwrap(), // Guaranteed to be Some at this point
-                                            },
-                                        ))
+                                match adapter.init_server() {
+                                    Ok(_) => {
+                                        response_payload =
+                                            Some(edcs_response::Payload::SetupStreamData(
+                                                EdcsSetupStreamData {
+                                                    out_stream_params: Some(EdcsStreamParams {
+                                                        framerate: adapter.framerate,
+                                                        bitrate: adapter.bitrate,
+                                                    }),
+                                                    sdp: adapter.sdp.clone().unwrap(), // Guaranteed to be Some at this point
+                                                },
+                                            ))
+                                    }
+                                    Err(e) => {
+                                        edcs_status = EdcsStatus::EdssErr;
+                                        response_payload =
+                                            Some(edcs_response::Payload::EdssErrData(e.0));
+                                    }
                                 }
-                                Err(e) => {
-                                    edcs_status = EdcsStatus::EdssErr;
-                                    response_payload =
-                                        Some(edcs_response::Payload::EdssErrData(e.0));
-                                }
+                            } else {
+                                edcs_status = EdcsStatus::StreamAlreadySetup;
                             }
                         }
                         EdcsMessageType::StartStream => {

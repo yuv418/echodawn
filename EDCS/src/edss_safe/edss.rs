@@ -20,6 +20,7 @@ pub struct EdssAdapter {
     pub cal_option_dict: HashMap<String, String>,
     pub sdp: Option<String>, // Only Some if init_server was called
     streaming: bool,
+    stream_setup: bool,
 }
 
 impl EdssAdapter {
@@ -29,6 +30,10 @@ impl EdssAdapter {
     // Prevent directly writing to this field, but allow access still.
     pub fn streaming(&self) -> bool {
         self.streaming
+    }
+    // Prevent directly writing to this field, but allow access still.
+    pub fn stream_setup(&self) -> bool {
+        self.stream_setup
     }
 
     fn to_c_struct(&self) -> edss_unsafe::edssConfig_t {
@@ -138,6 +143,7 @@ impl EdssAdapter {
             cal_option_dict: Self::strmap_to_hashmap(config)?,
             sdp: None,
             streaming: false,
+            stream_setup: false,
         })
     }
     // TODO implement more robust error handling from these functions
@@ -155,6 +161,7 @@ impl EdssAdapter {
                     .expect("Invalid SDP from EDSS")
                     .to_owned(),
             );
+            self.stream_setup = true;
 
             trace!("EdcsAdapter SDP field:\n{}", self.sdp.as_ref().unwrap());
         }
@@ -171,6 +178,7 @@ impl EdssAdapter {
         unsafe {
             edss_unsafe::edssCloseStreaming();
             self.streaming = false;
+            // TODO destroy all stream variables
         }
         Ok(())
     }

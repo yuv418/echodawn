@@ -70,15 +70,24 @@ async fn main() -> anyhow::Result<()> {
         std::fs::write("test.sdp", data.sdp);
         Command::new("mpv")
             .arg("--profile=low-latency")
-            .arg("--rtsp-transport=lavf")
-            .arg("--hwdec=yes")
+            .arg("--no-cache")
             .arg("--untimed")
-            .arg("--no-demuxer-thread")
-            .arg("--vd-lavc-threads=1")
-            .arg("--video-latency-hacks=yes")
+            .arg("--hwdec=auto-safe")
+            .arg("--video-sync=audio")
             .arg("test.sdp")
             .spawn()
             .expect("Failed to spawn mpv");
+        /*Command::new("ffplay")
+        .arg("-fflags")
+        .arg("nobuffer")
+        .arg("-flags")
+        .arg("low_delay")
+        .arg("-framedrop")
+        .arg("-protocol_whitelist")
+        .arg("rtp,udp,file")
+        .arg("test.sdp")
+        .spawn()
+        .expect("Failed to spawn mpv");*/
         // tokio::time::sleep(Duration::from_millis(5000)).await;
         let response = client.init_stream().await?;
         info!("Client setup stream returned response {:#?}", response);

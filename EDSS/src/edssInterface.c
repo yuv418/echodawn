@@ -34,6 +34,9 @@ static AVCodecContext *cdcCtx;
 static AVPacket *encPkt;
 static AVStream *avS;
 static AVFormatContext *fmtCtx;
+AVDictionary *opts;
+char rtpAddress[28]; // maximum ip:port length
+
 #define SDP_BUFLEN 3000
 
 EDSS_STATUS
@@ -135,7 +138,6 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg, char **sdpBuffer) {
     const AVCodec *cdc;
 
     const AVOutputFormat *rtpFmt;
-    char rtpAddress[28]; // maximum ip:port length
     snprintf(rtpAddress, sizeof(rtpAddress), "srtp://%s:%d/",
              inet_ntoa((struct in_addr){.s_addr = edssCfg->ip}), edssCfg->port);
 
@@ -187,8 +189,8 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg, char **sdpBuffer) {
     cdcCtx->width = calCfg->width;
     cdcCtx->pix_fmt = AV_PIX_FMT_YUV420P; // TODO do we want to be able to
                                           // change this to YUV444 at runtime?
-    cdcCtx->bit_rate = 10000000; // TODO this must be adjusted based on the
-                                 // quality of the network.
+    cdcCtx->bit_rate = edssCfg->bitrate;  // TODO this must be adjusted based on
+                                          // the quality of the network.
     cdcCtx->framerate =
         (AVRational){calCfg->framerate, 1}; // start with 60fps for now I guess
     cdcCtx->time_base = (AVRational){
@@ -232,7 +234,6 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg, char **sdpBuffer) {
      * ----------------------------------------------------------------------------------------
      */
 
-    AVDictionary *opts;
     opts = NULL;
 
     // Set SRTP options. TODO verify these calls succeeded.
@@ -251,14 +252,6 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg, char **sdpBuffer) {
     if (ret < 0) {
         EDSS_LOGE("Failed to open the output file for writing: %s\n",
                   av_err2str(ret));
-        return EDSS_LIBAV_FAILURE;
-    }
-
-    ret = avformat_write_header(fmtCtx,
-                                NULL); // The muxer(?) options don't have to be
-                                       // passed here, only to avio_open2
-    if (ret < 0) {
-        EDSS_LOGE("Failed to write header to output file\n");
         return EDSS_LIBAV_FAILURE;
     }
 
@@ -289,6 +282,14 @@ void *edssStreamThreadFunction(void *threadArgs) {
     int ret;
     int totalFramesEncoded;
     captureData_t *copiedFbPointer;
+
+    ret = avformat_write_header(fmtCtx,
+                                NULL); // The muxer(?) options don't have to be
+                                       // passed here, only to avio_open2
+    if (ret < 0) {
+        EDSS_LOGE("Failed to write header to output file\n");
+        return (void *)EDSS_LIBAV_FAILURE;
+    }
 
     fbEncoderCtx->picToEncode->pts = 0;
     totalFramesEncoded = 0;

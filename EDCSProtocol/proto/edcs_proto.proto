@@ -16,6 +16,8 @@ enum EdcsStatus {
     UNINITIALISED_EDSS = 3;
     INVALID_REQUEST = 4;
     STREAM_ALREADY_STARTED = 5;
+    EDCS_ALREADY_SETUP = 6;
+    STREAM_ALREADY_SETUP = 7;
 }
 
 message EdcsMessage {
