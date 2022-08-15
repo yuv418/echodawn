@@ -96,20 +96,27 @@ impl ConnectUI {
                             self.debug_area
                                 .borrow_mut()
                                 .push(&format!("RPC call response was not ok! Resp: {:?}", resp));
+                            // TODO figure out what the status is and handle it accordingly
+                            self.connection_stage = ConnectionStage::Connect(false);
                         } else {
                             match resp.payload {
-                                Some(p) => {
-                                    match p {
-                                        Payload::SetupEdcsData(_) => {
-                                            self.connection_stage = ConnectionStage::SetupStream;
-                                        }
-                                        Payload::SetupStreamData(_) => {
-                                            self.connection_stage = ConnectionStage::Handoff;
-                                            self.debug_area.borrow_mut().push("ConnectionState set to handoff, starting control bar");
-                                        }
-                                        _ => {}
+                                Some(p) => match p {
+                                    Payload::SetupEdcsData(setup_edcs_data) => {
+                                        debug!("connection stage setup stream");
+                                        self.connection_stage = ConnectionStage::SetupStream;
+                                        self.debug_area
+                                            .borrow_mut()
+                                            .push(&format!("SetupEdcsData {:?}", setup_edcs_data));
                                     }
-                                }
+                                    Payload::SetupStreamData(setup_stream_data) => {
+                                        self.connection_stage = ConnectionStage::Handoff;
+                                        self.debug_area.borrow_mut().push(&format!(
+                                            "SetupStreamData {:?}",
+                                            setup_stream_data
+                                        ));
+                                    }
+                                    _ => {}
+                                },
                                 None => {
                                     // Some calls actually return no payload, it just depends on what connection stage we are on for
                                     // if we have to handle it. The only call that does this is if you start the stream (for relevant RPCs), which is not something
