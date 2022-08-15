@@ -30,7 +30,7 @@ enum UIElement {
 pub struct UICtx {
     mpv_ctx: Option<mpv::MPVCtx>,
     egui_ctx: EguiGlow,
-    debug_area: debug_area::DebugArea,
+    debug_area: Rc<RefCell<debug_area::DebugArea>>,
     ui_element: UIElement,
     blocking_client: Rc<RefCell<BlockingEdcsClient>>,
 }
@@ -38,12 +38,16 @@ pub struct UICtx {
 impl UICtx {
     pub fn new(window: &Window, gl: Rc<glow::Context>) -> UICtx {
         let blocking_client = Rc::new(RefCell::new(BlockingEdcsClient::new()));
+        let debug_area = Rc::new(RefCell::new(debug_area::DebugArea::new(2)));
 
         UICtx {
             mpv_ctx: None,
-            debug_area: debug_area::DebugArea::new(blocking_client.clone()),
+            ui_element: UIElement::ConnectUI(ConnectUI::new(
+                blocking_client.clone(),
+                debug_area.clone(),
+            )),
+            debug_area,
             egui_ctx: egui_glow::winit::EguiGlow::new(window, gl.clone()),
-            ui_element: UIElement::ConnectUI(ConnectUI::new(blocking_client.clone())),
             blocking_client,
         }
     }
@@ -55,7 +59,7 @@ impl UICtx {
             style.spacing.item_spacing = egui::vec2(0.0, 7.0);
             ctx.set_style(style);
 
-            self.debug_area.render(ctx, ctrl_flow);
+            self.debug_area.borrow_mut().render(ctx, ctrl_flow);
             egui::Area::new("control_area")
                 .fixed_pos(egui::pos2(100.0, 100.0))
                 .show(ctx, |ui| {

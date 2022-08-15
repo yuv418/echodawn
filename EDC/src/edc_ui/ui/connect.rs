@@ -16,7 +16,9 @@ use crate::edcs_client::{
     edcs_proto::{edcs_response::Payload, EdcsStatus},
 };
 
-#[derive(PartialEq)]
+use super::debug_area::DebugArea;
+
+#[derive(PartialEq, Debug)]
 enum ConnectionStage {
     Connect(bool),
     SetupEdcs,
@@ -29,14 +31,19 @@ pub struct ConnectUI {
     config_path: String,
     client: Rc<RefCell<BlockingEdcsClient>>,
     connection_stage: ConnectionStage,
+    debug_area: Rc<RefCell<DebugArea>>,
     // Skip sending a request if one is pending
     pending_recv: bool,
 }
 
 impl ConnectUI {
-    pub fn new(client: Rc<RefCell<BlockingEdcsClient>>) -> ConnectUI {
+    pub fn new(
+        client: Rc<RefCell<BlockingEdcsClient>>,
+        debug_area: Rc<RefCell<DebugArea>>,
+    ) -> ConnectUI {
         ConnectUI {
             config_path: String::new(),
+            debug_area,
             client,
             connection_stage: ConnectionStage::Connect(false),
             pending_recv: false,
@@ -74,27 +81,35 @@ impl ConnectUI {
                     self.connection_stage = ConnectionStage::SetupEdcs;
                 }
                 ChannelEdcsResponse::EdcsClientInitError(e) => {
-                    error!("Failed to init client: {:?}", e);
+                    self.debug_area
+                        .borrow_mut()
+                        .push(&format!("Failed to init client: {:?}", e));
                     self.connection_stage = ConnectionStage::Connect(false);
                 }
-                ChannelEdcsResponse::InvalidClient => {
-                    error!("Called RPC with invalid client!")
-                }
+                ChannelEdcsResponse::InvalidClient => self
+                    .debug_area
+                    .borrow_mut()
+                    .push("Called RPC with invalid client!"),
                 ChannelEdcsResponse::EdcsResponse(r) => match r {
                     Ok(resp) => {
                         if resp.status() != EdcsStatus::Ok {
-                            error!("RPC call response was not ok! Resp: {:?}", resp);
+                            self.debug_area
+                                .borrow_mut()
+                                .push(&format!("RPC call response was not ok! Resp: {:?}", resp));
                         } else {
                             match resp.payload {
-                                Some(p) => match p {
-                                    Payload::SetupEdcsData(_) => {
-                                        self.connection_stage = ConnectionStage::SetupStream;
+                                Some(p) => {
+                                    match p {
+                                        Payload::SetupEdcsData(_) => {
+                                            self.connection_stage = ConnectionStage::SetupStream;
+                                        }
+                                        Payload::SetupStreamData(_) => {
+                                            self.connection_stage = ConnectionStage::Handoff;
+                                            self.debug_area.borrow_mut().push("ConnectionState set to handoff, starting control bar");
+                                        }
+                                        _ => {}
                                     }
-                                    Payload::SetupStreamData(_) => {
-                                        self.connection_stage = ConnectionStage::Handoff;
-                                    }
-                                    _ => {}
-                                },
+                                }
                                 None => {
                                     // Some calls actually return no payload, it just depends on what connection stage we are on for
                                     // if we have to handle it. The only call that does this is if you start the stream (for relevant RPCs), which is not something
@@ -103,7 +118,10 @@ impl ConnectUI {
                             };
                         }
                     }
-                    Err(err) => error!("EDCS call failed with {:?}", err),
+                    Err(err) => self
+                        .debug_area
+                        .borrow_mut()
+                        .push(&format!("EDCS call failed with {:?}", err)),
                 },
             }
         }
