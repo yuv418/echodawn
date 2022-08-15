@@ -34,11 +34,11 @@ impl DebugArea {
 
                         let waker = futures::task::noop_waker();
                         let mut cx = std::task::Context::from_waker(&waker);
-                        if let Poll::Ready(Some(msg)) =
+                        /*if let Poll::Ready(Some(msg)) =
                             self.blocking_client.borrow_mut().recv.poll_recv(&mut cx)
                         {
                             self.msg = format!("{:?}", msg);
-                        }
+                        }*/
 
                         let display_text = if !self.msg.is_empty() {
                             &self.msg

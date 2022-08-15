@@ -15,7 +15,7 @@ pub enum ChannelEdcsRequest {
     NewClient(PathBuf),
     SetupEdcs { bitrate: u32, framerate: u32 },
     SetupStream(HashMap<String, String>),
-    InitStream,
+    StartStream,
     CloseStream,
 }
 #[derive(Debug)]
@@ -76,13 +76,13 @@ impl BlockingEdcsClient {
             // TODO DRY
             ChannelEdcsRequest::SetupEdcs { .. }
             | ChannelEdcsRequest::SetupStream(_)
-            | ChannelEdcsRequest::InitStream
+            | ChannelEdcsRequest::StartStream
             | ChannelEdcsRequest::CloseStream => client_push
                 .send(if let Some(edcs_client) = &mut *edcs_client_opt {
                     match req {
                         ChannelEdcsRequest::SetupEdcs { bitrate, framerate } => {
                             ChannelEdcsResponse::EdcsResponse(
-                                edcs_client.setup_edcs(bitrate, framerate).await,
+                                edcs_client.setup_edcs(framerate, bitrate).await,
                             )
                         }
                         ChannelEdcsRequest::SetupStream(options) => {
@@ -90,7 +90,7 @@ impl BlockingEdcsClient {
                                 edcs_client.setup_stream(options).await,
                             )
                         }
-                        ChannelEdcsRequest::InitStream => {
+                        ChannelEdcsRequest::StartStream => {
                             ChannelEdcsResponse::EdcsResponse(edcs_client.init_stream().await)
                         }
                         ChannelEdcsRequest::CloseStream => {

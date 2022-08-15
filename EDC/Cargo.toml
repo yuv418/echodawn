@@ -28,7 +28,7 @@ lazy_static = "1.4.0"
 egui_glow = { version = "0.18", features = [ "winit" ] }
 egui = "0.18"
 futures = "0.3"
-egui-toast = "0.2"
+flume = { version = "0.10", features = [ "async" ] }
 
 [build-dependencies]
 prost-build = "0.10"
