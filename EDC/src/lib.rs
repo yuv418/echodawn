@@ -1,1 +1,2 @@
-pub mod edc_client;
+pub mod edc_ui;
+pub mod edcs_client;

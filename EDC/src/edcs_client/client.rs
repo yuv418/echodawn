@@ -14,7 +14,7 @@ use std::io::BufReader;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::edc_client::{
+use crate::edcs_client::{
     config::ClientConfig,
     edcs_proto::{
         edcs_message, EdcsCalParams, EdcsMessage, EdcsMessageType, EdcsResponse, EdcsStreamParams,
@@ -36,13 +36,16 @@ impl rustls::client::ServerCertVerifier for NoCertVerify {
     }
 }
 
-pub struct EdcClient {
+#[derive(Debug)]
+pub struct EdcsClient {
     reader: ReadHalf<TlsStream<TcpStream>>,
     writer: WriteHalf<TlsStream<TcpStream>>,
 }
 
-impl EdcClient {
-    pub async fn new(config_file_path: &Path) -> anyhow::Result<EdcClient> {
+unsafe impl Send for EdcsClient {}
+
+impl EdcsClient {
+    pub async fn new(config_file_path: &Path) -> anyhow::Result<Self> {
         let client_options: ClientConfig = toml::from_str(
             &fs::read_to_string(config_file_path)
                 .with_context(|| "Failed to unwrap the config file name")?,
@@ -95,7 +98,7 @@ impl EdcClient {
             .with_context(|| "Failed to connect to the EDCS server")?;
 
         let (reader, writer) = split(stream);
-        Ok(EdcClient { reader, writer })
+        Ok(Self { reader, writer })
     }
 
     // Handle sending RPCs to the EDCS

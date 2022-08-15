@@ -141,6 +141,9 @@ impl EdcsHandler {
                             }
                         }
                         EdcsMessageType::CloseStream => {
+                            // TODO there is a bug here --> we need to figure out how to handle an already setup EDCS/stream that hasn't
+                            // started streaming, since EDSS will try to free invalid pointers in some cases.
+                            // It may be a good idea to free resources on client disconnect.
                             if adapter.streaming() {
                                 match adapter.close_streaming() {
                                     Err(e) => {
@@ -155,6 +158,7 @@ impl EdcsHandler {
                                     }
                                 }
                             } else {
+                                // Edcs might be setup, who knows
                                 edcs_status = EdcsStatus::StreamNotStarted;
                             }
                         }

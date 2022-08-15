@@ -7,8 +7,8 @@ use std::time::Duration;
 
 use clap::Parser;
 
-use edc::edc_client::client::EdcClient;
-use edc::edc_client::edcs_proto::{edcs_response, EdcsMessageType, EdcsResponse};
+use edc::edc_ui::evloop::EVLoopCtx;
+use edc::edcs_client::edcs_proto::{edcs_response, EdcsMessageType, EdcsResponse};
 use log::info;
 
 #[derive(Parser, Debug)]
@@ -18,8 +18,7 @@ struct CLIArgs {
 }
 
 // Mostly copied from https://github.com/tokio-rs/tls/blob/master/tokio-rustls/examples/client/src/main.rs (I mean… it's all boilerplate anyway)
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let args = CLIArgs::parse();
     // TODO share code between EDCS and EDC for these kinds of things
     env_logger::Builder::new()
@@ -51,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     info!("Starting up client!");
-    let mut client = EdcClient::new(&args.config_file_path).await?;
+    /*let mut client = EdcClient::new(&args.config_file_path).await?;
     info!("Client connected to server");
 
     // Kill any existing streams
@@ -68,22 +67,24 @@ async fn main() -> anyhow::Result<()> {
     data_map.insert("vgpuId".to_string(), "2".to_string());
 
     let response = client.setup_stream(data_map).await?;
-    info!("Client setup stream returned response {:#?}", response);
+    info!("Client setup stream returned response {:#?}", response);*/
 
-    if let Some(edcs_response::Payload::SetupStreamData(data)) = response.payload {
+    let ctx = EVLoopCtx::new(1920, 1080)?;
+    ctx.start_loop();
+    /*if let Some(edcs_response::Payload::SetupStreamData(data)) = response.payload {
         std::fs::write("test.sdp", data.sdp)?;
         // Enable the demuxer thread, otherwise mpv has lots of video smearing
-        Command::new("mpv")
-            .arg("--profile=low-latency")
-            .arg("--video-latency-hacks=yes")
-            .arg("--vd-lavc-threads=1")
-            .arg("--no-cache")
-            .arg("--untimed")
-            .arg("--hwdec=auto-safe")
-            .arg("--video-sync=audio")
-            .arg("test.sdp")
-            .spawn()
-            .expect("Failed to spawn mpv");
+        /*Command::new("mpv")
+        .arg("--profile=low-latency")
+        .arg("--video-latency-hacks=yes")
+        .arg("--vd-lavc-threads=1")
+        .arg("--no-cache")
+        .arg("--untimed")
+        .arg("--hwdec=auto-safe")
+        .arg("--video-sync=audio")
+        .arg("test.sdp")
+        .spawn()
+        .expect("Failed to spawn mpv");*/
         /*Command::new("ffplay")
         .arg("-fflags")
         .arg("nobuffer")
@@ -96,9 +97,11 @@ async fn main() -> anyhow::Result<()> {
         .spawn()
         .expect("Failed to spawn mpv");*/
         // tokio::time::sleep(Duration::from_millis(5000)).await;
-        let response = client.init_stream().await?;
-        info!("Client setup stream returned response {:#?}", response);
-    }
+
+
+        /*let response = client.init_stream().await?;
+        info!("Client setup stream returned response {:#?}", response);*/
+    }*/
 
     Ok(())
 }

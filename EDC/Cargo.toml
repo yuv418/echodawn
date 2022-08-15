@@ -20,6 +20,15 @@ rustls-pemfile = "1"
 webpki = "0.22"
 prost = "0.10"
 prost-types = "0.10"
+# It doesn't really matter which mpv-sys we use
+libmpv-sys = { git = "https://github.com/anlumo/libmpv-rs" }
+glow = "0.11"
+glutin = "0.28"
+lazy_static = "1.4.0"
+egui_glow = { version = "0.18", features = [ "winit" ] }
+egui = "0.18"
+futures = "0.3"
+egui-toast = "0.2"
 
 [build-dependencies]
 prost-build = "0.10"
