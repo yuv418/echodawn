@@ -10,7 +10,7 @@ use egui::RichText;
 use egui_glow::EguiGlow;
 use glutin::{
     event::WindowEvent,
-    event_loop::ControlFlow,
+    event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowId},
 };
 use log::debug;
@@ -27,7 +27,6 @@ mod ui_element;
 use ui_element::UIElement;
 
 pub struct UICtx {
-    mpv_ctx: Option<mpv::MPVCtx>,
     egui_ctx: EguiGlow,
     debug_area: Rc<RefCell<debug_area::DebugArea>>,
     ui_element: Box<dyn UIElement>,
@@ -35,15 +34,18 @@ pub struct UICtx {
 }
 
 impl UICtx {
-    pub fn new(window: &Window, gl: Rc<glow::Context>) -> UICtx {
+    pub fn new(window: &Window, evloop: Rc<EventLoop<MPVEvent>>, gl: Rc<glow::Context>) -> UICtx {
         let blocking_client = Rc::new(RefCell::new(BlockingEdcsClient::new()));
         let debug_area = Rc::new(RefCell::new(debug_area::DebugArea::new(2)));
 
         UICtx {
-            mpv_ctx: None,
-            ui_element: Box::new(ConnectUI::new(blocking_client.clone(), debug_area.clone())),
+            ui_element: Box::new(ConnectUI::new(
+                blocking_client.clone(),
+                debug_area.clone(),
+                evloop,
+            )),
             debug_area,
-            egui_ctx: egui_glow::winit::EguiGlow::new(window, gl.clone()),
+            egui_ctx: egui_glow::winit::EguiGlow::new(&window, gl.clone()),
             blocking_client,
         }
     }
@@ -65,20 +67,17 @@ impl UICtx {
     pub fn paint(&mut self, window: &Window) {
         self.egui_ctx.paint(window);
 
-        // Replace the element for the next render
-        if let Some(next_ui) = self.ui_element.next_element() {
+        // Replace the element for the next render. We need to pass window
+        // to init a new element.
+        if let Some(next_ui) = self.ui_element.next_element(window) {
             self.ui_element = next_ui;
-        }
-
-        if let Some(mpv_ctx) = &self.mpv_ctx {
-            mpv_ctx.paint(window);
         }
     }
 
     // TODO move this stuff into a trait
     pub fn handle_window_event(
         &mut self,
-        _window: &Window,
+        window: &Window,
         ctrl_flow: &mut ControlFlow,
         window_id: WindowId,
         event: WindowEvent,
@@ -88,16 +87,13 @@ impl UICtx {
             _ => {}
         }
 
+        self.ui_element
+            .handle_window_event(window, ctrl_flow, window_id, event);
         self.egui_ctx.on_event(&event);
-        if let Some(mpv_ctx) = &self.mpv_ctx {
-            mpv_ctx.handle_window_event(window_id, event)
-        }
     }
 
     // UserEvents are only for MPV at the moment
     pub fn handle_user_event(&self, window: &Window, ctrl_flow: &ControlFlow, event: MPVEvent) {
-        if let Some(mpv_ctx) = &self.mpv_ctx {
-            mpv_ctx.handle_user_event(window, ctrl_flow, event)
-        }
+        self.ui_element.handle_user_event(window, ctrl_flow, event);
     }
 }

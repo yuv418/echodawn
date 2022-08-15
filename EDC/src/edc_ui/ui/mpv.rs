@@ -11,6 +11,7 @@ use std::{
     mem,
     os::raw::c_char,
     ptr,
+    rc::Rc,
 };
 
 #[derive(Debug)]
@@ -28,6 +29,7 @@ pub struct MPVCtx {
 
 pub unsafe extern "C" fn get_proc_addr(ctx: *mut c_void, name: *const c_char) -> *mut c_void {
     let rust_name = CStr::from_ptr(name).to_str().unwrap();
+    // I doubt this is going to work
     let window: &ContextWrapper<PossiblyCurrent, Window> = std::mem::transmute(ctx);
     let addr = window.get_proc_address(rust_name) as *mut _;
     addr
@@ -47,8 +49,8 @@ pub unsafe extern "C" fn on_mpv_render_update(ctx: *mut c_void) {
 
 impl MPVCtx {
     pub fn new(
-        window: &Window,
-        evloop: &EventLoop<MPVEvent>,
+        window: Rc<Window>,
+        evloop: Rc<EventLoop<MPVEvent>>,
         width: u32,
         height: u32,
         debug: bool,
@@ -77,7 +79,7 @@ impl MPVCtx {
                     type_: mpv_render_param_type_MPV_RENDER_PARAM_OPENGL_INIT_PARAMS,
                     data: mem::transmute(&mut mpv_opengl_init_params {
                         get_proc_address: Some(get_proc_addr),
-                        get_proc_address_ctx: mem::transmute(&window),
+                        get_proc_address_ctx: Rc::as_ptr(&window) as *mut _,
                         extra_exts: ptr::null(),
                     }),
                 },
@@ -120,6 +122,10 @@ impl MPVCtx {
             width,
             height,
         })
+    }
+
+    pub fn set_sdp(sdp: String) {
+        todo!()
     }
 
     pub fn paint(&self, window: &Window) {

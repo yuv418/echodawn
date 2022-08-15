@@ -8,7 +8,11 @@ use std::{
 };
 
 use egui::{InnerResponse, RichText};
-use glutin::event_loop::ControlFlow;
+use egui_glow::EguiGlow;
+use glutin::{
+    event_loop::{ControlFlow, EventLoop},
+    window::Window,
+};
 use log::{debug, error, info};
 
 use crate::edcs_client::{
@@ -16,7 +20,7 @@ use crate::edcs_client::{
     edcs_proto::{edcs_response::Payload, EdcsStatus},
 };
 
-use super::{debug_area::DebugArea, ui_element::UIElement};
+use super::{debug_area::DebugArea, mpv::MPVEvent, ui_element::UIElement};
 
 #[derive(PartialEq, Debug)]
 enum ConnectionStage {
@@ -34,12 +38,13 @@ pub struct ConnectUI {
     debug_area: Rc<RefCell<DebugArea>>,
     // Skip sending a request if one is pending
     pending_recv: bool,
+    evloop: Rc<EventLoop<MPVEvent>>,
 }
-
-impl UIElement for ConnectUI {
-    fn new(
+impl ConnectUI {
+    pub fn new(
         client: Rc<RefCell<BlockingEdcsClient>>,
         debug_area: Rc<RefCell<DebugArea>>,
+        evloop: Rc<EventLoop<MPVEvent>>,
     ) -> ConnectUI {
         ConnectUI {
             config_path: String::new(),
@@ -47,9 +52,12 @@ impl UIElement for ConnectUI {
             client,
             connection_stage: ConnectionStage::Connect(false),
             pending_recv: false,
+            evloop,
         }
     }
+}
 
+impl UIElement for ConnectUI {
     fn render(&mut self, ui: &mut egui::Ui, ctrl_flow: &mut ControlFlow) -> InnerResponse<()> {
         // Don't send/recv messages if it's not necessary
         if self.connection_stage != ConnectionStage::Handoff {
@@ -167,7 +175,23 @@ impl UIElement for ConnectUI {
         }
     }
 
-    fn next_element(&mut self) -> Option<Box<dyn UIElement>> {
+    fn next_element(&mut self, window: &Window) -> Option<Box<dyn UIElement>> {
         None
+    }
+
+    fn paint_before_egui(&mut self, window: &glutin::window::Window) {}
+    fn paint_after_egui(&mut self, window: &glutin::window::Window) {}
+
+    fn handle_window_event(
+        &mut self,
+        window: &Window,
+        ctrl_flow: &mut ControlFlow,
+        window_id: glutin::window::WindowId,
+        event: glutin::event::WindowEvent,
+    ) {
+    }
+
+    fn handle_user_event(&self, window: &Window, ctrl_flow: &ControlFlow, event: MPVEvent) {
+        // Do nothing
     }
 }
