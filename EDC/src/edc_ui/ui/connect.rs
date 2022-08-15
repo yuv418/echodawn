@@ -16,7 +16,7 @@ use crate::edcs_client::{
     edcs_proto::{edcs_response::Payload, EdcsStatus},
 };
 
-use super::debug_area::DebugArea;
+use super::{debug_area::DebugArea, ui_element::UIElement};
 
 #[derive(PartialEq, Debug)]
 enum ConnectionStage {
@@ -36,8 +36,8 @@ pub struct ConnectUI {
     pending_recv: bool,
 }
 
-impl ConnectUI {
-    pub fn new(
+impl UIElement for ConnectUI {
+    fn new(
         client: Rc<RefCell<BlockingEdcsClient>>,
         debug_area: Rc<RefCell<DebugArea>>,
     ) -> ConnectUI {
@@ -50,7 +50,7 @@ impl ConnectUI {
         }
     }
 
-    pub fn render(&mut self, ui: &mut egui::Ui, ctrl_flow: &mut ControlFlow) -> InnerResponse<()> {
+    fn render(&mut self, ui: &mut egui::Ui, ctrl_flow: &mut ControlFlow) -> InnerResponse<()> {
         // Don't send/recv messages if it's not necessary
         if self.connection_stage != ConnectionStage::Handoff {
             self.handle_messages();
@@ -70,7 +70,7 @@ impl ConnectUI {
     }
 
     /// Send and receive messages from the blocking client.
-    pub fn handle_messages(&mut self) {
+    fn handle_messages(&mut self) {
         let waker = futures::task::noop_waker();
         let mut cx = std::task::Context::from_waker(&waker);
         if let Poll::Ready(Some(msg)) = self.client.borrow_mut().recv.poll_recv(&mut cx) {
@@ -165,5 +165,9 @@ impl ConnectUI {
                 }
             }
         }
+    }
+
+    fn next_element(&mut self) -> Option<Box<dyn UIElement>> {
+        None
     }
 }

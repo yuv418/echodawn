@@ -22,16 +22,15 @@ mod connect;
 mod control_bar;
 mod debug_area;
 pub(crate) mod mpv;
+mod ui_element;
 
-enum UIElement {
-    ConnectUI(connect::ConnectUI),
-}
+use ui_element::UIElement;
 
 pub struct UICtx {
     mpv_ctx: Option<mpv::MPVCtx>,
     egui_ctx: EguiGlow,
     debug_area: Rc<RefCell<debug_area::DebugArea>>,
-    ui_element: UIElement,
+    ui_element: Box<dyn UIElement>,
     blocking_client: Rc<RefCell<BlockingEdcsClient>>,
 }
 
@@ -42,10 +41,7 @@ impl UICtx {
 
         UICtx {
             mpv_ctx: None,
-            ui_element: UIElement::ConnectUI(ConnectUI::new(
-                blocking_client.clone(),
-                debug_area.clone(),
-            )),
+            ui_element: Box::new(ConnectUI::new(blocking_client.clone(), debug_area.clone())),
             debug_area,
             egui_ctx: egui_glow::winit::EguiGlow::new(window, gl.clone()),
             blocking_client,
@@ -62,19 +58,18 @@ impl UICtx {
             self.debug_area.borrow_mut().render(ctx, ctrl_flow);
             egui::Area::new("control_area")
                 .fixed_pos(egui::pos2(100.0, 100.0))
-                .show(ctx, |ui| {
-                    if let UIElement::ConnectUI(cui) = &mut self.ui_element {
-                        cui.render(ui, ctrl_flow)
-                    } else {
-                        // This will never happen
-                        panic!();
-                    }
-                });
+                .show(ctx, |ui| self.ui_element.render(ui, ctrl_flow));
         })
     }
 
     pub fn paint(&mut self, window: &Window) {
         self.egui_ctx.paint(window);
+
+        // Replace the element for the next render
+        if let Some(next_ui) = self.ui_element.next_element() {
+            self.ui_element = next_ui;
+        }
+
         if let Some(mpv_ctx) = &self.mpv_ctx {
             mpv_ctx.paint(window);
         }
