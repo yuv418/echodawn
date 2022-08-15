@@ -36,7 +36,7 @@ impl EVLoopCtx {
             (window, Rc::new(gl))
         };
 
-        let ui_ctx = UICtx::new(window.window(), Rc::new(evloop), gl.clone());
+        let ui_ctx = UICtx::new(window.window(), gl.clone());
         Ok(EVLoopCtx {
             evloop,
             window,

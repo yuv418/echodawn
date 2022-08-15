@@ -10,7 +10,7 @@ use egui::RichText;
 use egui_glow::EguiGlow;
 use glutin::{
     event::WindowEvent,
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ControlFlow, EventLoop, EventLoopProxy},
     window::{Window, WindowId},
 };
 use log::debug;
@@ -34,16 +34,12 @@ pub struct UICtx {
 }
 
 impl UICtx {
-    pub fn new(window: &Window, evloop: Rc<EventLoop<MPVEvent>>, gl: Rc<glow::Context>) -> UICtx {
+    pub fn new(window: &Window, gl: Rc<glow::Context>) -> UICtx {
         let blocking_client = Rc::new(RefCell::new(BlockingEdcsClient::new()));
         let debug_area = Rc::new(RefCell::new(debug_area::DebugArea::new(2)));
 
         UICtx {
-            ui_element: Box::new(ConnectUI::new(
-                blocking_client.clone(),
-                debug_area.clone(),
-                evloop,
-            )),
+            ui_element: Box::new(ConnectUI::new(blocking_client.clone(), debug_area.clone())),
             debug_area,
             egui_ctx: egui_glow::winit::EguiGlow::new(&window, gl.clone()),
             blocking_client,
@@ -87,13 +83,19 @@ impl UICtx {
             _ => {}
         }
 
-        self.ui_element
-            .handle_window_event(window, ctrl_flow, window_id, event);
         self.egui_ctx.on_event(&event);
+        self.ui_element
+            .handle_window_event(window, ctrl_flow, window_id, &event);
     }
 
     // UserEvents are only for MPV at the moment
     pub fn handle_user_event(&self, window: &Window, ctrl_flow: &ControlFlow, event: MPVEvent) {
-        self.ui_element.handle_user_event(window, ctrl_flow, event);
+        self.ui_element.handle_user_event(window, ctrl_flow, &event);
+    }
+    fn needs_evloop_proxy(&mut self) -> bool {
+        self.ui_element.needs_evloop_proxy()
+    }
+    fn give_evloop_proxy(&mut self, evloop_proxy: EventLoopProxy<MPVEvent>) {
+        self.ui_element.give_evloop_proxy(evloop_proxy)
     }
 }

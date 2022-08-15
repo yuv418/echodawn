@@ -38,13 +38,11 @@ pub struct ConnectUI {
     debug_area: Rc<RefCell<DebugArea>>,
     // Skip sending a request if one is pending
     pending_recv: bool,
-    evloop: Rc<EventLoop<MPVEvent>>,
 }
 impl ConnectUI {
     pub fn new(
         client: Rc<RefCell<BlockingEdcsClient>>,
         debug_area: Rc<RefCell<DebugArea>>,
-        evloop: Rc<EventLoop<MPVEvent>>,
     ) -> ConnectUI {
         ConnectUI {
             config_path: String::new(),
@@ -52,7 +50,6 @@ impl ConnectUI {
             client,
             connection_stage: ConnectionStage::Connect(false),
             pending_recv: false,
-            evloop,
         }
     }
 }
@@ -187,11 +184,17 @@ impl UIElement for ConnectUI {
         window: &Window,
         ctrl_flow: &mut ControlFlow,
         window_id: glutin::window::WindowId,
-        event: glutin::event::WindowEvent,
+        event: &glutin::event::WindowEvent,
     ) {
     }
 
-    fn handle_user_event(&self, window: &Window, ctrl_flow: &ControlFlow, event: MPVEvent) {
+    fn handle_user_event(&self, window: &Window, ctrl_flow: &ControlFlow, event: &MPVEvent) {
         // Do nothing
     }
+
+    fn needs_evloop_proxy(&mut self) -> bool {
+        false
+    }
+
+    fn give_evloop_proxy(&mut self, evloop_proxy: glutin::event_loop::EventLoopProxy<MPVEvent>) {}
 }

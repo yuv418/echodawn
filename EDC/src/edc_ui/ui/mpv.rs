@@ -25,6 +25,7 @@ pub struct MPVCtx {
     mpv_gl: *mut mpv_render_context,
     width: u32,
     height: u32,
+    evloop_proxy: Option<EventLoopProxy<MPVEvent>>,
 }
 
 pub unsafe extern "C" fn get_proc_addr(ctx: *mut c_void, name: *const c_char) -> *mut c_void {
@@ -100,20 +101,6 @@ impl MPVCtx {
             )
         };
 
-        let event_proxy = evloop.create_proxy();
-
-        // Setup wakeup callback
-
-        unsafe {
-            mpv_set_wakeup_callback(mpv, Some(on_mpv_event), std::mem::transmute(&event_proxy));
-            // Setup update callback
-            mpv_render_context_set_update_callback(
-                mpv_gl,
-                Some(on_mpv_render_update),
-                std::mem::transmute(&event_proxy),
-            )
-        }
-
         // SDP handling goes here
 
         Ok(MPVCtx {
@@ -121,6 +108,7 @@ impl MPVCtx {
             mpv_gl,
             width,
             height,
+            evloop_proxy: None,
         })
     }
 
@@ -170,7 +158,7 @@ impl MPVCtx {
         }
     }
 
-    pub fn handle_user_event(&self, window: &Window, ctrl_flow: &ControlFlow, event: MPVEvent) {
+    pub fn handle_user_event(&self, window: &Window, ctrl_flow: &ControlFlow, event: &MPVEvent) {
         match event {
             MPVEvent::MPVRenderUpdate => {
                 unsafe {
@@ -201,5 +189,28 @@ impl MPVCtx {
                 }
             },
         };
+    }
+    pub fn needs_evloop_proxy(&mut self) -> bool {
+        self.evloop_proxy.is_none()
+    }
+    pub fn give_evloop_proxy(&mut self, evloop_proxy: EventLoopProxy<MPVEvent>) {
+        // Setup wakeup callback
+
+        // This way, the proxy does not get dropped
+        self.evloop_proxy = Some(evloop_proxy);
+
+        unsafe {
+            mpv_set_wakeup_callback(
+                self.mpv,
+                Some(on_mpv_event),
+                std::mem::transmute(&self.evloop_proxy.as_ref().unwrap()),
+            );
+            // Setup update callback
+            mpv_render_context_set_update_callback(
+                self.mpv_gl,
+                Some(on_mpv_render_update),
+                std::mem::transmute(&self.evloop_proxy.as_ref().unwrap()),
+            );
+        }
     }
 }

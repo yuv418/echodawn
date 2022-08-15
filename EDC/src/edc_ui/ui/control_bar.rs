@@ -54,12 +54,10 @@ impl UIElement for ControlBarUI {
         todo!()
     }
 
-    fn handle_messages(&mut self) {
-        todo!()
-    }
+    fn handle_messages(&mut self) {}
 
     fn next_element(&mut self, window: &Window) -> Option<Box<dyn UIElement>> {
-        todo!()
+        None
     }
 
     fn handle_window_event(
@@ -67,7 +65,7 @@ impl UIElement for ControlBarUI {
         window: &Window,
         ctrl_flow: &mut glutin::event_loop::ControlFlow,
         window_id: glutin::window::WindowId,
-        event: glutin::event::WindowEvent,
+        event: &glutin::event::WindowEvent,
     ) {
     }
 
@@ -75,7 +73,7 @@ impl UIElement for ControlBarUI {
         &self,
         window: &Window,
         ctrl_flow: &glutin::event_loop::ControlFlow,
-        event: MPVEvent,
+        event: &MPVEvent,
     ) {
         self.mpv_ctx.handle_user_event(window, ctrl_flow, event)
     }
@@ -86,5 +84,15 @@ impl UIElement for ControlBarUI {
 
     fn paint_after_egui(&mut self, window: &Window) {
         todo!()
+    }
+
+    fn needs_evloop_proxy(&mut self) -> bool {
+        self.mpv_ctx.needs_evloop_proxy()
+    }
+
+    fn give_evloop_proxy(&mut self, evloop_proxy: glutin::event_loop::EventLoopProxy<MPVEvent>) {
+        if self.mpv_ctx.needs_evloop_proxy() {
+            self.mpv_ctx.give_evloop_proxy(evloop_proxy);
+        }
     }
 }
