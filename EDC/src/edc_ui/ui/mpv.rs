@@ -7,7 +7,7 @@ use glutin::{
 use libmpv_sys::*;
 use log::debug;
 use std::{
-    ffi::{c_void, CStr},
+    ffi::{c_void, CStr, CString},
     mem,
     os::raw::c_char,
     ptr,
@@ -25,7 +25,7 @@ pub struct MPVCtx {
     mpv_gl: *mut mpv_render_context,
     width: u32,
     height: u32,
-    evloop_proxy: Option<EventLoopProxy<MPVEvent>>,
+    evloop_proxy: Option<Rc<EventLoopProxy<MPVEvent>>>,
 }
 
 pub unsafe extern "C" fn get_proc_addr(ctx: *mut c_void, name: *const c_char) -> *mut c_void {
@@ -37,12 +37,14 @@ pub unsafe extern "C" fn get_proc_addr(ctx: *mut c_void, name: *const c_char) ->
 }
 pub unsafe extern "C" fn on_mpv_event(ctx: *mut c_void) {
     let event_proxy: &EventLoopProxy<MPVEvent> = mem::transmute(ctx);
+    debug!("render_event");
     event_proxy
         .send_event(MPVEvent::MPVEventUpdate)
         .expect("Failed to send event update to render loop");
 }
 pub unsafe extern "C" fn on_mpv_render_update(ctx: *mut c_void) {
     let event_proxy: &EventLoopProxy<MPVEvent> = mem::transmute(ctx);
+    debug!("render_update");
     event_proxy
         .send_event(MPVEvent::MPVRenderUpdate)
         .expect("Failed to send render update to render loop");
@@ -50,8 +52,7 @@ pub unsafe extern "C" fn on_mpv_render_update(ctx: *mut c_void) {
 
 impl MPVCtx {
     pub fn new(
-        window: Rc<Window>,
-        evloop: Rc<EventLoop<MPVEvent>>,
+        window: &Window,
         width: u32,
         height: u32,
         debug: bool,
@@ -80,7 +81,7 @@ impl MPVCtx {
                     type_: mpv_render_param_type_MPV_RENDER_PARAM_OPENGL_INIT_PARAMS,
                     data: mem::transmute(&mut mpv_opengl_init_params {
                         get_proc_address: Some(get_proc_addr),
-                        get_proc_address_ctx: Rc::as_ptr(&window) as *mut _,
+                        get_proc_address_ctx: mem::transmute(window),
                         extra_exts: ptr::null(),
                     }),
                 },
@@ -100,6 +101,14 @@ impl MPVCtx {
                 "MPV failed to create the render context!"
             )
         };
+        let mut mpd_cmd_args: Vec<*const c_char> = vec![
+            "loadfile\0".as_ptr() as _,
+            CString::new("memory://".to_owned() + &sdp)
+                .unwrap()
+                .into_raw(),
+            ptr::null(),
+        ];
+        unsafe { mpv_command_async(mpv, 0, mpd_cmd_args.as_mut_ptr() as *mut *const _) };
 
         // SDP handling goes here
 
@@ -193,23 +202,24 @@ impl MPVCtx {
     pub fn needs_evloop_proxy(&mut self) -> bool {
         self.evloop_proxy.is_none()
     }
-    pub fn give_evloop_proxy(&mut self, evloop_proxy: EventLoopProxy<MPVEvent>) {
+    pub fn give_evloop_proxy(&mut self, evloop_proxy: Rc<EventLoopProxy<MPVEvent>>) {
         // Setup wakeup callback
 
-        // This way, the proxy does not get dropped
+        // This way, the proxy does not get dropped.
+        // TODO is this really necessary if we are behind an Rc?
         self.evloop_proxy = Some(evloop_proxy);
 
         unsafe {
             mpv_set_wakeup_callback(
                 self.mpv,
                 Some(on_mpv_event),
-                std::mem::transmute(&self.evloop_proxy.as_ref().unwrap()),
+                Rc::as_ptr(self.evloop_proxy.as_ref().unwrap()) as *mut _,
             );
             // Setup update callback
             mpv_render_context_set_update_callback(
                 self.mpv_gl,
                 Some(on_mpv_render_update),
-                std::mem::transmute(&self.evloop_proxy.as_ref().unwrap()),
+                Rc::as_ptr(self.evloop_proxy.as_ref().unwrap()) as *mut _,
             );
         }
     }

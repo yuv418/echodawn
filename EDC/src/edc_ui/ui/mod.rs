@@ -83,7 +83,10 @@ impl UICtx {
             _ => {}
         }
 
+        self.ui_element.paint_before_egui(window);
         self.egui_ctx.on_event(&event);
+        self.ui_element.paint_after_egui(window);
+
         self.ui_element
             .handle_window_event(window, ctrl_flow, window_id, &event);
     }
@@ -92,10 +95,10 @@ impl UICtx {
     pub fn handle_user_event(&self, window: &Window, ctrl_flow: &ControlFlow, event: MPVEvent) {
         self.ui_element.handle_user_event(window, ctrl_flow, &event);
     }
-    fn needs_evloop_proxy(&mut self) -> bool {
+    pub fn needs_evloop_proxy(&mut self) -> bool {
         self.ui_element.needs_evloop_proxy()
     }
-    fn give_evloop_proxy(&mut self, evloop_proxy: EventLoopProxy<MPVEvent>) {
+    pub fn give_evloop_proxy(&mut self, evloop_proxy: Rc<EventLoopProxy<MPVEvent>>) {
         self.ui_element.give_evloop_proxy(evloop_proxy)
     }
 }

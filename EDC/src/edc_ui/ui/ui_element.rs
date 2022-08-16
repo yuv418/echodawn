@@ -16,7 +16,7 @@ pub trait UIElement {
     fn handle_messages(&mut self);
     fn next_element(&mut self, window: &Window) -> Option<Box<dyn UIElement>>;
     fn needs_evloop_proxy(&mut self) -> bool;
-    fn give_evloop_proxy(&mut self, evloop_proxy: EventLoopProxy<MPVEvent>);
+    fn give_evloop_proxy(&mut self, evloop_proxy: Rc<EventLoopProxy<MPVEvent>>);
     fn paint_before_egui(&mut self, window: &Window);
     fn paint_after_egui(&mut self, window: &Window);
     fn handle_window_event(

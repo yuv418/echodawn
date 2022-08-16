@@ -20,7 +20,9 @@ use crate::edcs_client::{
     edcs_proto::{edcs_response::Payload, EdcsStatus},
 };
 
-use super::{debug_area::DebugArea, mpv::MPVEvent, ui_element::UIElement};
+use super::{
+    control_bar::ControlBarUI, debug_area::DebugArea, mpv::MPVEvent, ui_element::UIElement,
+};
 
 #[derive(PartialEq, Debug)]
 enum ConnectionStage {
@@ -38,6 +40,7 @@ pub struct ConnectUI {
     debug_area: Rc<RefCell<DebugArea>>,
     // Skip sending a request if one is pending
     pending_recv: bool,
+    sdp: Option<String>,
 }
 impl ConnectUI {
     pub fn new(
@@ -50,6 +53,7 @@ impl ConnectUI {
             client,
             connection_stage: ConnectionStage::Connect(false),
             pending_recv: false,
+            sdp: None,
         }
     }
 }
@@ -115,6 +119,7 @@ impl UIElement for ConnectUI {
                                     }
                                     Payload::SetupStreamData(setup_stream_data) => {
                                         self.connection_stage = ConnectionStage::Handoff;
+                                        self.sdp = Some(setup_stream_data.sdp.clone());
                                         self.debug_area.borrow_mut().push(&format!(
                                             "SetupStreamData {:?}",
                                             setup_stream_data
@@ -173,7 +178,20 @@ impl UIElement for ConnectUI {
     }
 
     fn next_element(&mut self, window: &Window) -> Option<Box<dyn UIElement>> {
-        None
+        if let ConnectionStage::Handoff = self.connection_stage {
+            Some(Box::new(ControlBarUI::new(
+                self.client.clone(),
+                self.debug_area.clone(),
+                window,
+                // SDP should never be None here
+                self.sdp
+                    .as_ref()
+                    .expect("No SDP set despite ConnectionStage::Handoff set")
+                    .to_owned(),
+            )))
+        } else {
+            None
+        }
     }
 
     fn paint_before_egui(&mut self, window: &glutin::window::Window) {}
@@ -196,5 +214,9 @@ impl UIElement for ConnectUI {
         false
     }
 
-    fn give_evloop_proxy(&mut self, evloop_proxy: glutin::event_loop::EventLoopProxy<MPVEvent>) {}
+    fn give_evloop_proxy(
+        &mut self,
+        evloop_proxy: Rc<glutin::event_loop::EventLoopProxy<MPVEvent>>,
+    ) {
+    }
 }

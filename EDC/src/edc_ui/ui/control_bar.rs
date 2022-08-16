@@ -1,8 +1,10 @@
 use std::{cell::RefCell, rc::Rc};
 
+use egui::RichText;
 use glutin::{event_loop::EventLoop, window::Window};
+use log::info;
 
-use crate::edcs_client::blocking_client::BlockingEdcsClient;
+use crate::edcs_client::blocking_client::{BlockingEdcsClient, ChannelEdcsRequest};
 
 use super::{
     debug_area::DebugArea,
@@ -15,13 +17,13 @@ pub struct ControlBarUI {
     client: Rc<RefCell<BlockingEdcsClient>>,
     debug_area: Rc<RefCell<DebugArea>>,
     mpv_ctx: mpv::MPVCtx,
+    stream_started: bool,
 }
 impl ControlBarUI {
     pub fn new(
         client: Rc<RefCell<BlockingEdcsClient>>,
         debug_area: Rc<RefCell<DebugArea>>,
-        window: Rc<Window>,
-        evloop: Rc<EventLoop<MPVEvent>>,
+        window: &Window,
         sdp: String,
     ) -> Self
     where
@@ -33,7 +35,6 @@ impl ControlBarUI {
             debug_area,
             mpv_ctx: mpv::MPVCtx::new(
                 window,
-                evloop,
                 inner_size.width,
                 inner_size.height,
                 // TODO make this variable
@@ -41,6 +42,7 @@ impl ControlBarUI {
                 sdp,
             )
             .expect("Failed to start MPV"),
+            stream_started: false,
         }
     }
 }
@@ -51,10 +53,28 @@ impl UIElement for ControlBarUI {
         ui: &mut egui::Ui,
         ctrl_flow: &mut glutin::event_loop::ControlFlow,
     ) -> egui::InnerResponse<()> {
-        todo!()
+        self.handle_messages();
+        egui::Frame::none()
+            .fill(egui::Color32::DARK_GRAY)
+            .inner_margin(10.0)
+            .outer_margin(10.0)
+            .show(ui, |ui| {
+                ui.heading(RichText::new("Connection").strong());
+            })
     }
 
-    fn handle_messages(&mut self) {}
+    fn handle_messages(&mut self) {
+        let needs_evloop_proxy = self.needs_evloop_proxy();
+        if !self.stream_started && !needs_evloop_proxy {
+            info!("Starting video stream");
+            self.client
+                .borrow()
+                .push
+                .blocking_send(ChannelEdcsRequest::StartStream)
+                .expect("Failed to start video stream");
+            self.stream_started = true;
+        }
+    }
 
     fn next_element(&mut self, window: &Window) -> Option<Box<dyn UIElement>> {
         None
@@ -79,18 +99,19 @@ impl UIElement for ControlBarUI {
     }
 
     fn paint_before_egui(&mut self, window: &Window) {
-        todo!()
+        self.mpv_ctx.paint(window)
     }
 
-    fn paint_after_egui(&mut self, window: &Window) {
-        todo!()
-    }
+    fn paint_after_egui(&mut self, _window: &Window) {}
 
     fn needs_evloop_proxy(&mut self) -> bool {
         self.mpv_ctx.needs_evloop_proxy()
     }
 
-    fn give_evloop_proxy(&mut self, evloop_proxy: glutin::event_loop::EventLoopProxy<MPVEvent>) {
+    fn give_evloop_proxy(
+        &mut self,
+        evloop_proxy: Rc<glutin::event_loop::EventLoopProxy<MPVEvent>>,
+    ) {
         if self.mpv_ctx.needs_evloop_proxy() {
             self.mpv_ctx.give_evloop_proxy(evloop_proxy);
         }

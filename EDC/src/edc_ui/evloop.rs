@@ -47,6 +47,8 @@ impl EVLoopCtx {
 
     // https://github.com/grovesNL/glow/blob/main/examples/hello/src/main.rs
     pub fn start_loop(mut self) {
+        let evloop_proxy = Rc::new(self.evloop.create_proxy());
+
         self.evloop.run(move |event, _, ctrl_flow| {
             *ctrl_flow = ControlFlow::Wait;
 
@@ -57,11 +59,14 @@ impl EVLoopCtx {
                 Event::MainEventsCleared => self.window.window().request_redraw(),
                 Event::RedrawRequested(_) => {
                     unsafe {
-                        self.gl.clear_color(0.1, 0.1, 0.1, 1.0);
-                        self.gl.clear(glow::COLOR_BUFFER_BIT);
+                        /*self.gl.clear_color(0.1, 0.1, 0.1, 1.0);
+                        self.gl.clear(glow::COLOR_BUFFER_BIT);*/
                     }
                     self.ui_ctx.setup_render(ctrl_flow, self.window.window());
                     self.ui_ctx.paint(self.window.window());
+                    if self.ui_ctx.needs_evloop_proxy() {
+                        self.ui_ctx.give_evloop_proxy(evloop_proxy.clone())
+                    }
 
                     // This is required because of MPV/egui colour space problems. Perhaps put this in UICtx::paint?
                     unsafe {
