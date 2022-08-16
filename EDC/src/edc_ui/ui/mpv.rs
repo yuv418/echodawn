@@ -44,13 +44,18 @@ pub unsafe extern "C" fn on_mpv_event(ctx: *mut c_void) {
 }
 pub unsafe extern "C" fn on_mpv_render_update(ctx: *mut c_void) {
     let event_proxy: &EventLoopProxy<MPVEvent> = mem::transmute(ctx);
-    debug!("render_update");
     event_proxy
         .send_event(MPVEvent::MPVRenderUpdate)
         .expect("Failed to send render update to render loop");
 }
 
 impl MPVCtx {
+    pub fn mpv_set_opt(mpv: *mut mpv_handle, key: &str, val: &str) -> i32 {
+        let prop = CString::new(key).expect("Failed to set mpv prop key");
+        let val = CString::new(val).expect("Failed to set mpv prop val");
+
+        unsafe { mpv_set_option_string(mpv, prop.as_ptr(), val.as_ptr()) }
+    }
     pub fn new(
         window: &Window,
         width: u32,
@@ -67,10 +72,18 @@ impl MPVCtx {
 
         unsafe {
             if debug {
-                let mut loglv = "debug\0".to_owned();
-                let c_loglv = loglv.as_mut_ptr() as *mut _;
-                mpv_request_log_messages(mpv, c_loglv);
+                let loglv = CString::new("debug").expect("Failed to create loglevel string");
+                mpv_request_log_messages(mpv, loglv.as_ptr());
             }
+
+            Self::mpv_set_opt(mpv, "profile", "low-latency");
+            Self::mpv_set_opt(mpv, "video-latency-hacks", "yes");
+            // Self::mpv_set_opt(mpv, "vd-lavc-threads", "12");
+            Self::mpv_set_opt(mpv, "no-cache", "yes");
+            Self::mpv_set_opt(mpv, "untimed", "yes");
+            Self::mpv_set_opt(mpv, "hwdec", "auto-safe");
+            Self::mpv_set_opt(mpv, "video-sync", "audio");
+
             assert!(mpv_initialize(mpv) == 0, "MPV failed to initialise!");
             let mut mpv_render_params = vec![
                 mpv_render_param {
@@ -119,10 +132,6 @@ impl MPVCtx {
             height,
             evloop_proxy: None,
         })
-    }
-
-    pub fn set_sdp(sdp: String) {
-        todo!()
     }
 
     pub fn paint(&self, window: &Window) {

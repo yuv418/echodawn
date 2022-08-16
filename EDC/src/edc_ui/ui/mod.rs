@@ -61,7 +61,9 @@ impl UICtx {
     }
 
     pub fn paint(&mut self, window: &Window) {
+        self.ui_element.paint_before_egui(window);
         self.egui_ctx.paint(window);
+        self.ui_element.paint_after_egui(window);
 
         // Replace the element for the next render. We need to pass window
         // to init a new element.
@@ -83,9 +85,7 @@ impl UICtx {
             _ => {}
         }
 
-        self.ui_element.paint_before_egui(window);
         self.egui_ctx.on_event(&event);
-        self.ui_element.paint_after_egui(window);
 
         self.ui_element
             .handle_window_event(window, ctrl_flow, window_id, &event);
