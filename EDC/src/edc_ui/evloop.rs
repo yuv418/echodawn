@@ -62,8 +62,11 @@ impl EVLoopCtx {
                         /*self.gl.clear_color(0.1, 0.1, 0.1, 1.0);
                         self.gl.clear(glow::COLOR_BUFFER_BIT);*/
                     }
+                    self.ui_ctx.paint_before_egui(self.window.window());
                     self.ui_ctx.setup_render(ctrl_flow, self.window.window());
                     self.ui_ctx.paint(self.window.window());
+                    self.ui_ctx.paint_after_egui(self.window.window());
+
                     if self.ui_ctx.needs_evloop_proxy() {
                         self.ui_ctx.give_evloop_proxy(evloop_proxy.clone())
                     }
