@@ -65,7 +65,7 @@ impl BlockingEdcsClient {
         std::thread::spawn(move || {
             runtime.block_on(async move {
                 let edcs_client: Arc<Mutex<Option<EdcsClient>>> = Arc::new(Mutex::new(None));
-                for req in client_recv.iter() {
+                while let Ok(req) = client_recv.recv_async().await {
                     debug!("recv erquest");
                     Self::handle_req(req, edcs_client.clone(), client_send.clone()).await;
                 }
