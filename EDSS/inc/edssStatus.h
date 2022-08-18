@@ -32,4 +32,6 @@ typedef enum {
     EDSS_PTHREAD_FAILURE,
     /// When EDSS encounters an error with StrMap.
     EDSS_STRMAP_FAILURE,
+    /// When EDSS receives invalid mouse data
+    EDSS_INVALID_MOUSE_DATA,
 } EDSS_STATUS;

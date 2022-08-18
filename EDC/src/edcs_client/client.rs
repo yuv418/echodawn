@@ -17,7 +17,9 @@ use std::sync::Arc;
 use crate::edcs_client::{
     config::ClientConfig,
     edcs_proto::{
-        edcs_message, EdcsCalParams, EdcsMessage, EdcsMessageType, EdcsResponse, EdcsStreamParams,
+        edcs_message, edcs_mouse_event, EdcsCalParams, EdcsMessage, EdcsMessageType,
+        EdcsMouseButton, EdcsMouseButtonData, EdcsMouseEvent, EdcsMouseMove, EdcsResponse,
+        EdcsStreamParams,
     },
 };
 
@@ -182,6 +184,32 @@ impl EdcsClient {
         self.send_message(EdcsMessage {
             message_type: EdcsMessageType::CloseStream as i32,
             payload: None,
+        })
+        .await
+    }
+    pub async fn write_mouse_move(&mut self, x: u32, y: u32) -> anyhow::Result<EdcsResponse> {
+        debug!("Writing mouse move!");
+        self.send_message(EdcsMessage {
+            message_type: EdcsMessageType::WriteMouseEvent as i32,
+            payload: Some(edcs_message::Payload::MouseEvent(EdcsMouseEvent {
+                payload: Some(edcs_mouse_event::Payload::Move(EdcsMouseMove { x, y })),
+            })),
+        })
+        .await
+    }
+    pub async fn write_mouse_button(
+        &mut self,
+        btn_typ: EdcsMouseButton,
+        pressed: bool,
+    ) -> anyhow::Result<EdcsResponse> {
+        self.send_message(EdcsMessage {
+            message_type: EdcsMessageType::WriteMouseEvent as i32,
+            payload: Some(edcs_message::Payload::MouseEvent(EdcsMouseEvent {
+                payload: Some(edcs_mouse_event::Payload::Button(EdcsMouseButtonData {
+                    btn_typ: btn_typ as i32,
+                    pressed,
+                })),
+            })),
         })
         .await
     }

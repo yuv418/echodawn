@@ -2,6 +2,9 @@ use log::{debug, info, trace};
 use rand::RngCore;
 
 use super::edss_unsafe;
+use crate::edcs_server::edcs_proto::{
+    edcs_mouse_event, EdcsMouseButton, EdcsMouseButtonData, EdcsMouseEvent,
+};
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -21,6 +24,11 @@ pub struct EdssAdapter {
     pub sdp: Option<String>, // Only Some if init_server was called
     streaming: bool,
     stream_setup: bool,
+}
+
+union MouseData {
+    key_code: u32,
+    coords: (u32, u32),
 }
 
 impl EdssAdapter {
@@ -179,6 +187,49 @@ impl EdssAdapter {
             edss_unsafe::edssCloseStreaming();
             self.streaming = false;
             self.stream_setup = false;
+            // TODO destroy all stream variables
+        }
+        Ok(())
+    }
+    pub fn write_mouse_event(&mut self, ev: EdcsMouseEvent) -> Result<(), EdssError> {
+        let mut edss_event = match ev.payload {
+            Some(edcs_mouse_event::Payload::Button(EdcsMouseButtonData { btn_typ, pressed })) => {
+                edss_unsafe::edssMouseEvent_t {
+                    type_: edss_unsafe::edssMouseEventType_t_CLICK,
+                    payload: edss_unsafe::edssMouseEvent_t__bindgen_ty_1 {
+                        button: edss_unsafe::edssMouseEvent_t__bindgen_ty_1_button {
+                            pressed,
+                            button: match EdcsMouseButton::from_i32(btn_typ) {
+                                Some(EdcsMouseButton::MouseButtonLeft) => {
+                                    input_event_codes::BTN_LEFT!()
+                                }
+                                Some(EdcsMouseButton::MouseButtonRight) => {
+                                    input_event_codes::BTN_RIGHT!()
+                                }
+                                Some(EdcsMouseButton::MouseButtonMiddle) => {
+                                    input_event_codes::BTN_MIDDLE!()
+                                }
+                                _ => {
+                                    return Err(EdssError(
+                                        edss_unsafe::EDSS_STATUS_EDSS_INVALID_MOUSE_DATA,
+                                    ))
+                                }
+                            },
+                        },
+                    },
+                }
+            }
+            Some(edcs_mouse_event::Payload::Move(m)) => edss_unsafe::edssMouseEvent_t {
+                type_: edss_unsafe::edssMouseEventType_t_MOVE,
+
+                payload: edss_unsafe::edssMouseEvent_t__bindgen_ty_1 {
+                    move_: edss_unsafe::edssMouseEvent_t__bindgen_ty_1_move { x: m.x, y: m.y },
+                },
+            },
+            _ => return Err(EdssError(edss_unsafe::EDSS_STATUS_EDSS_INVALID_MOUSE_DATA)),
+        };
+        unsafe {
+            edss_unsafe::edssWriteMouseEvent(&mut edss_event as *mut _);
             // TODO destroy all stream variables
         }
         Ok(())

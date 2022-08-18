@@ -1,7 +1,9 @@
 #include "../../inc/edssCALInterface.h"
+#include "../../inc/edssInterface.h"
 #include "../../inc/edssLog.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/uinput.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -16,6 +18,7 @@
 
 struct vgpuCALRTCfg {
     int vgpuFd;
+    int inputFd;
     calConfig_t *calCfg;
 };
 
@@ -69,6 +72,26 @@ EDSS_STATUS calInit(StrMap *calOptionDict, calConfig_t *calCfg) {
     // `/sys/bus/mdev/devices/<UUID>/nvidia/vgpu_params`
     rtCfg.calCfg->framerate = 60;
 
+    // Setup uinput
+    rtCfg.inputFd = open("/dev/uinput", O_WRONLY);
+    ioctl(rtCfg.inputFd, UI_SET_EVBIT, EV_KEY);
+    ioctl(rtCfg.inputFd, UI_SET_KEYBIT, BTN_LEFT);
+    ioctl(rtCfg.inputFd, UI_SET_KEYBIT, BTN_RIGHT);
+    ioctl(rtCfg.inputFd, UI_SET_KEYBIT, BTN_MIDDLE);
+
+    ioctl(rtCfg.inputFd, UI_SET_EVBIT, EV_ABS);
+    ioctl(rtCfg.inputFd, UI_SET_ABSBIT, ABS_X);
+    ioctl(rtCfg.inputFd, UI_SET_ABSBIT, ABS_Y);
+
+    struct uinput_setup usetup = {.id.bustype = BUS_USB,
+                                  // TODO change this or remove this
+                                  .id.vendor = 0x1234,
+                                  .id.product = 0x5678,
+                                  .name = "EDSSVInput"};
+
+    ioctl(rtCfg.inputFd, UI_DEV_SETUP, &usetup);
+    ioctl(rtCfg.inputFd, UI_DEV_CREATE);
+
     return EDSS_OK;
 }
 
@@ -95,9 +118,39 @@ EDSS_STATUS calShutdown() {
     return EDSS_OK;
 }
 
+// https://01.org/linuxgraphics/gfx-docs/drm/input/uinput.html#mouse-movements
+void send_ev(int type, int code, int val) {
+    struct input_event e = {
+        .type = type,
+        .code = code,
+        .value = val,
+        .time.tv_sec = 0,
+        .time.tv_usec = 0,
+    };
+
+    write(rtCfg.inputFd, &e, sizeof(e));
+}
+
+EDSS_STATUS calWriteMouseEvent(edssMouseEvent_t *ev) {
+    EDSS_LOGD("vGPU CAL plugin writing mouse event\n");
+    switch (ev->type) {
+    case CLICK:
+        send_ev(EV_KEY, ev->payload.button.button, ev->payload.button.pressed);
+    case MOVE:
+        send_ev(EV_ABS, ABS_X, ev->payload.move.x);
+        send_ev(EV_ABS, ABS_X, ev->payload.move.y);
+        break;
+    }
+    // Report X/Y together
+    send_ev(EV_SYN, SYN_REPORT, 0);
+
+    return EDSS_OK;
+}
+
 calPlugin_t calPlugin = {
     .calOptions = calOptions,
     .calInit = calInit,
     .calReadFrame = calReadFrame,
     .calShutdown = calShutdown,
+    .calWriteMouseEvent = calWriteMouseEvent,
 };

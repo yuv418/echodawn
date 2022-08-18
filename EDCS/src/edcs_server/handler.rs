@@ -80,7 +80,8 @@ impl EdcsHandler {
             }
             EdcsMessageType::SetupStream
             | EdcsMessageType::StartStream
-            | EdcsMessageType::CloseStream => {
+            | EdcsMessageType::CloseStream
+            | EdcsMessageType::WriteMouseEvent => {
                 // TODO: DRY here
 
                 if let Some(adapter) = &mut self.adapter {
@@ -159,6 +160,28 @@ impl EdcsHandler {
                                 }
                             } else {
                                 // Edcs might be setup, who knows
+                                edcs_status = EdcsStatus::StreamNotStarted;
+                            }
+                        }
+                        EdcsMessageType::WriteMouseEvent => {
+                            if adapter.streaming() {
+                                match adapter.write_mouse_event(match msg.payload {
+                                    Some(edcs_message::Payload::MouseEvent(mev)) => mev,
+                                    _ => {
+                                        return Ok(EdcsResponse {
+                                            status: EdcsStatus::InvalidRequest as i32,
+                                            payload: None,
+                                        })
+                                    }
+                                }) {
+                                    Err(e) => {
+                                        edcs_status = EdcsStatus::EdssErr;
+                                        response_payload =
+                                            Some(edcs_response::Payload::EdssErrData(e.0));
+                                    }
+                                    Ok(_) => response_payload = None,
+                                }
+                            } else {
                                 edcs_status = EdcsStatus::StreamNotStarted;
                             }
                         }

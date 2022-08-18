@@ -63,7 +63,7 @@ pub const __STDC_IEC_60559_COMPLEX__: u32 = 201404;
 pub const __STDC_ISO_10646__: u32 = 201706;
 pub const __GNU_LIBRARY__: u32 = 6;
 pub const __GLIBC__: u32 = 2;
-pub const __GLIBC_MINOR__: u32 = 35;
+pub const __GLIBC_MINOR__: u32 = 36;
 pub const _SYS_CDEFS_H: u32 = 1;
 pub const __glibc_c99_flexarr_available: u32 = 1;
 pub const __LDOUBLE_REDIRECTS_TO_FLOAT128_ABI: u32 = 0;
@@ -294,6 +294,7 @@ pub const SOL_TLS: u32 = 282;
 pub const SOL_XDP: u32 = 283;
 pub const SOL_MPTCP: u32 = 284;
 pub const SOL_MCTP: u32 = 285;
+pub const SOL_SMC: u32 = 286;
 pub const SOMAXCONN: u32 = 4096;
 pub const _BITS_SOCKADDR_H: u32 = 1;
 pub const _SS_SIZE: u32 = 128;
@@ -383,6 +384,7 @@ pub const SO_BUSY_POLL_BUDGET: u32 = 70;
 pub const SO_NETNS_COOKIE: u32 = 71;
 pub const SO_BUF_LOCK: u32 = 72;
 pub const SO_RESERVE_MEM: u32 = 73;
+pub const SO_TXREHASH: u32 = 74;
 pub const SO_TIMESTAMP: u32 = 29;
 pub const SO_TIMESTAMPNS: u32 = 35;
 pub const SO_TIMESTAMPING: u32 = 37;
@@ -535,6 +537,9 @@ pub const IN_CLASSC_HOST: u32 = 255;
 pub const IN_LOOPBACKNET: u32 = 127;
 pub const INET_ADDRSTRLEN: u32 = 16;
 pub const INET6_ADDRSTRLEN: u32 = 46;
+pub const true_: u32 = 1;
+pub const false_: u32 = 0;
+pub const __bool_true_false_are_defined: u32 = 1;
 pub type size_t = ::std::os::raw::c_ulong;
 pub type wchar_t = ::std::os::raw::c_int;
 pub type _Float32 = f32;
@@ -2804,6 +2809,15 @@ extern "C" {
     ) -> ::std::os::raw::c_int;
 }
 extern "C" {
+    pub fn arc4random() -> __uint32_t;
+}
+extern "C" {
+    pub fn arc4random_buf(__buf: *mut ::std::os::raw::c_void, __size: size_t);
+}
+extern "C" {
+    pub fn arc4random_uniform(__upper_bound: __uint32_t) -> __uint32_t;
+}
+extern "C" {
     pub fn malloc(__size: ::std::os::raw::c_ulong) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
@@ -3583,6 +3597,8 @@ pub const EDSS_STATUS_EDSS_ALLOCATION_FAILURE: EDSS_STATUS = 9;
 pub const EDSS_STATUS_EDSS_PTHREAD_FAILURE: EDSS_STATUS = 10;
 #[doc = " When EDSS encounters an error with StrMap."]
 pub const EDSS_STATUS_EDSS_STRMAP_FAILURE: EDSS_STATUS = 11;
+#[doc = " When EDSS receives invalid mouse data"]
+pub const EDSS_STATUS_EDSS_INVALID_MOUSE_DATA: EDSS_STATUS = 12;
 #[doc = " Status enum that allows callees to understand why a call failed."]
 pub type EDSS_STATUS = ::std::os::raw::c_uint;
 #[repr(C)]
@@ -5731,6 +5747,235 @@ fn bindgen_test_layout_edssConfig_t() {
     }
     test_field_calOptionDict();
 }
+pub const edssMouseEventType_t_CLICK: edssMouseEventType_t = 0;
+pub const edssMouseEventType_t_MOVE: edssMouseEventType_t = 1;
+#[doc = " Mouse event struct"]
+pub type edssMouseEventType_t = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct edssMouseEvent_t {
+    pub type_: edssMouseEventType_t,
+    pub payload: edssMouseEvent_t__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union edssMouseEvent_t__bindgen_ty_1 {
+    pub move_: edssMouseEvent_t__bindgen_ty_1_move,
+    pub button: edssMouseEvent_t__bindgen_ty_1_button,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct edssMouseEvent_t__bindgen_ty_1_move {
+    pub x: u32,
+    pub y: u32,
+}
+#[test]
+fn bindgen_test_layout_edssMouseEvent_t__bindgen_ty_1_move() {
+    assert_eq!(
+        ::std::mem::size_of::<edssMouseEvent_t__bindgen_ty_1_move>(),
+        8usize,
+        concat!("Size of: ", stringify!(edssMouseEvent_t__bindgen_ty_1_move))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<edssMouseEvent_t__bindgen_ty_1_move>(),
+        4usize,
+        concat!(
+            "Alignment of ",
+            stringify!(edssMouseEvent_t__bindgen_ty_1_move)
+        )
+    );
+    fn test_field_x() {
+        assert_eq!(
+            unsafe {
+                let uninit =
+                    ::std::mem::MaybeUninit::<edssMouseEvent_t__bindgen_ty_1_move>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).x) as usize - ptr as usize
+            },
+            0usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(edssMouseEvent_t__bindgen_ty_1_move),
+                "::",
+                stringify!(x)
+            )
+        );
+    }
+    test_field_x();
+    fn test_field_y() {
+        assert_eq!(
+            unsafe {
+                let uninit =
+                    ::std::mem::MaybeUninit::<edssMouseEvent_t__bindgen_ty_1_move>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).y) as usize - ptr as usize
+            },
+            4usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(edssMouseEvent_t__bindgen_ty_1_move),
+                "::",
+                stringify!(y)
+            )
+        );
+    }
+    test_field_y();
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct edssMouseEvent_t__bindgen_ty_1_button {
+    pub button: u32,
+    pub pressed: bool,
+}
+#[test]
+fn bindgen_test_layout_edssMouseEvent_t__bindgen_ty_1_button() {
+    assert_eq!(
+        ::std::mem::size_of::<edssMouseEvent_t__bindgen_ty_1_button>(),
+        8usize,
+        concat!(
+            "Size of: ",
+            stringify!(edssMouseEvent_t__bindgen_ty_1_button)
+        )
+    );
+    assert_eq!(
+        ::std::mem::align_of::<edssMouseEvent_t__bindgen_ty_1_button>(),
+        4usize,
+        concat!(
+            "Alignment of ",
+            stringify!(edssMouseEvent_t__bindgen_ty_1_button)
+        )
+    );
+    fn test_field_button() {
+        assert_eq!(
+            unsafe {
+                let uninit =
+                    ::std::mem::MaybeUninit::<edssMouseEvent_t__bindgen_ty_1_button>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).button) as usize - ptr as usize
+            },
+            0usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(edssMouseEvent_t__bindgen_ty_1_button),
+                "::",
+                stringify!(button)
+            )
+        );
+    }
+    test_field_button();
+    fn test_field_pressed() {
+        assert_eq!(
+            unsafe {
+                let uninit =
+                    ::std::mem::MaybeUninit::<edssMouseEvent_t__bindgen_ty_1_button>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).pressed) as usize - ptr as usize
+            },
+            4usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(edssMouseEvent_t__bindgen_ty_1_button),
+                "::",
+                stringify!(pressed)
+            )
+        );
+    }
+    test_field_pressed();
+}
+#[test]
+fn bindgen_test_layout_edssMouseEvent_t__bindgen_ty_1() {
+    assert_eq!(
+        ::std::mem::size_of::<edssMouseEvent_t__bindgen_ty_1>(),
+        8usize,
+        concat!("Size of: ", stringify!(edssMouseEvent_t__bindgen_ty_1))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<edssMouseEvent_t__bindgen_ty_1>(),
+        4usize,
+        concat!("Alignment of ", stringify!(edssMouseEvent_t__bindgen_ty_1))
+    );
+    fn test_field_move() {
+        assert_eq!(
+            unsafe {
+                let uninit = ::std::mem::MaybeUninit::<edssMouseEvent_t__bindgen_ty_1>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).move_) as usize - ptr as usize
+            },
+            0usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(edssMouseEvent_t__bindgen_ty_1),
+                "::",
+                stringify!(move_)
+            )
+        );
+    }
+    test_field_move();
+    fn test_field_button() {
+        assert_eq!(
+            unsafe {
+                let uninit = ::std::mem::MaybeUninit::<edssMouseEvent_t__bindgen_ty_1>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).button) as usize - ptr as usize
+            },
+            0usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(edssMouseEvent_t__bindgen_ty_1),
+                "::",
+                stringify!(button)
+            )
+        );
+    }
+    test_field_button();
+}
+#[test]
+fn bindgen_test_layout_edssMouseEvent_t() {
+    assert_eq!(
+        ::std::mem::size_of::<edssMouseEvent_t>(),
+        12usize,
+        concat!("Size of: ", stringify!(edssMouseEvent_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<edssMouseEvent_t>(),
+        4usize,
+        concat!("Alignment of ", stringify!(edssMouseEvent_t))
+    );
+    fn test_field_type() {
+        assert_eq!(
+            unsafe {
+                let uninit = ::std::mem::MaybeUninit::<edssMouseEvent_t>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).type_) as usize - ptr as usize
+            },
+            0usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(edssMouseEvent_t),
+                "::",
+                stringify!(type_)
+            )
+        );
+    }
+    test_field_type();
+    fn test_field_payload() {
+        assert_eq!(
+            unsafe {
+                let uninit = ::std::mem::MaybeUninit::<edssMouseEvent_t>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).payload) as usize - ptr as usize
+            },
+            4usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(edssMouseEvent_t),
+                "::",
+                stringify!(payload)
+            )
+        );
+    }
+    test_field_payload();
+}
 extern "C" {
     #[doc = " Initialize the server. This will allocate and initialize various FFmpeg"]
     #[doc = " structures with the values provided from the provided `cfg` variable."]
@@ -5753,6 +5998,10 @@ extern "C" {
 extern "C" {
     #[doc = " Stop the SRTP server main loop, and stop the capture thread."]
     pub fn edssCloseStreaming() -> EDSS_STATUS;
+}
+extern "C" {
+    #[doc = " Write a mouse event to the CAL"]
+    pub fn edssWriteMouseEvent(ev: *mut edssMouseEvent_t) -> EDSS_STATUS;
 }
 extern "C" {
     #[doc = " Update the SRTP stream's to the new cfg pointer (we only pass a new pointer"]

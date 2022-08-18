@@ -1,10 +1,18 @@
 use std::{cell::RefCell, rc::Rc};
 
 use egui::RichText;
-use glutin::{event_loop::EventLoop, window::Window};
+use glutin::{
+    dpi::PhysicalPosition,
+    event::{ElementState, WindowEvent},
+    event_loop::EventLoop,
+    window::Window,
+};
 use log::info;
 
-use crate::edcs_client::blocking_client::{BlockingEdcsClient, ChannelEdcsRequest};
+use crate::edcs_client::{
+    blocking_client::{BlockingEdcsClient, ChannelEdcsRequest},
+    edcs_proto::EdcsMouseButton,
+};
 
 use super::{
     debug_area::DebugArea,
@@ -18,6 +26,7 @@ pub struct ControlBarUI {
     debug_area: Rc<RefCell<DebugArea>>,
     mpv_ctx: mpv::MPVCtx,
     stream_started: bool,
+    prev_pos: PhysicalPosition<f64>,
 }
 impl ControlBarUI {
     pub fn new(
@@ -43,6 +52,7 @@ impl ControlBarUI {
             )
             .expect("Failed to start MPV"),
             stream_started: false,
+            prev_pos: PhysicalPosition { x: 0.0, y: 0.0 },
         }
     }
 }
@@ -70,7 +80,7 @@ impl UIElement for ControlBarUI {
             self.client
                 .borrow()
                 .push
-                .blocking_send(ChannelEdcsRequest::StartStream)
+                .send(ChannelEdcsRequest::StartStream)
                 .expect("Failed to start video stream");
             self.stream_started = true;
         }
@@ -87,6 +97,38 @@ impl UIElement for ControlBarUI {
         window_id: glutin::window::WindowId,
         event: &glutin::event::WindowEvent,
     ) {
+        match event {
+            WindowEvent::CursorMoved { position, .. } => {
+                self.client
+                    .borrow()
+                    .push
+                    .try_send(ChannelEdcsRequest::WriteMouseMove {
+                        x: (position.x) as u32,
+                        y: (position.y) as u32,
+                    });
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                self.client
+                    .borrow()
+                    .push
+                    .try_send(ChannelEdcsRequest::WriteMouseButton {
+                        button_typ: match button {
+                            glutin::event::MouseButton::Left => EdcsMouseButton::MouseButtonLeft,
+                            glutin::event::MouseButton::Right => EdcsMouseButton::MouseButtonRight,
+                            glutin::event::MouseButton::Middle => {
+                                EdcsMouseButton::MouseButtonMiddle
+                            }
+                            glutin::event::MouseButton::Other(_) => return, // ignore this
+                        },
+                        pressed: if let ElementState::Pressed = state {
+                            true
+                        } else {
+                            false
+                        },
+                    });
+            }
+            _ => {}
+        }
     }
 
     fn handle_user_event(

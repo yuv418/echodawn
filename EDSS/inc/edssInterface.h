@@ -3,6 +3,7 @@
 #include "../vendor/strmap/strmap.h"
 #include "edssStatus.h"
 #include <arpa/inet.h>
+#include <stdbool.h>
 
 /** @file
  * Configuration enum for control server to set, influenced by ED client.
@@ -31,6 +32,28 @@ typedef struct {
 } edssConfig_t;
 
 /**
+ * Mouse event struct
+ */
+typedef enum { CLICK, MOVE } edssMouseEventType_t;
+
+typedef struct {
+    edssMouseEventType_t type;
+
+    union {
+        struct move {
+            uint32_t x;
+            uint32_t y;
+        } move;
+
+        struct button {
+            uint32_t button;
+            bool pressed;
+        } button;
+    } payload;
+
+} edssMouseEvent_t;
+
+/**
  * Initialize the server. This will allocate and initialize various FFmpeg
  * structures with the values provided from the provided `cfg` variable.
  * Furthermore, any capture abstraction libraries will have their initializers
@@ -47,6 +70,9 @@ EDSS_STATUS edssInitStreaming();
 
 /** Stop the SRTP server main loop, and stop the capture thread. */
 EDSS_STATUS edssCloseStreaming();
+
+/** Write a mouse event to the CAL */
+EDSS_STATUS edssWriteMouseEvent(edssMouseEvent_t *ev);
 
 /**
  * Update the SRTP stream's to the new cfg pointer (we only pass a new pointer

@@ -422,3 +422,7 @@ EDSS_STATUS edssCloseStreaming() {
 
 /// Not implemented for now
 EDSS_STATUS edssUpdateStreaming(edssConfig_t *cfg) { return EDSS_OK; }
+
+EDSS_STATUS edssWriteMouseEvent(edssMouseEvent_t *ev) {
+    return calPlugin->calWriteMouseEvent(ev);
+}

@@ -7,6 +7,7 @@ enum EdcsMessageType {
     CLOSE_STREAM = 2;
     UPDATE_STREAM = 3;
     SETUP_STREAM = 4;
+    WRITE_MOUSE_EVENT = 5;
 }
 
 enum EdcsStatus {
@@ -27,7 +28,31 @@ message EdcsMessage {
         EdcsStreamParams setup_edcs_params = 2;
         EdcsStreamParams update_stream_params = 3;
         EdcsCALParams setup_stream_params = 4;
+        EdcsMouseEvent mouse_event = 5;
     }
+}
+
+message EdcsMouseEvent {
+    oneof payload {
+        EdcsMouseMove move = 2;
+        EdcsMouseButtonData button = 3;
+    }
+}
+
+message EdcsMouseMove {
+    uint32 x = 1;
+    uint32 y = 2;
+}
+
+message EdcsMouseButtonData {
+    EdcsMouseButton btn_typ = 1;
+    bool pressed = 2;
+}
+
+enum EdcsMouseButton {
+    MOUSE_BUTTON_LEFT = 0;
+    MOUSE_BUTTON_RIGHT = 1;
+    MOUSE_BUTTON_MIDDLE = 2;
 }
 
 message EdcsStreamParams {

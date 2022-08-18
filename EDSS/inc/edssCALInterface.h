@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../vendor/strmap/strmap.h"
+#include "edssInterface.h"
 #include "edssStatus.h"
 #include <libavutil/pixfmt.h>
 #include <stdint.h>
@@ -65,6 +66,10 @@ typedef struct {
      * config. The resulting frame is stored in calConfig's frame pointer.
      */
     EDSS_STATUS (*calReadFrame)();
+    /**
+     * Write a mouse event to CAL.
+     */
+    EDSS_STATUS (*calWriteMouseEvent)(edssMouseEvent_t *ev);
 
     /**
      * Free memory that was allocated in `calInit`. For example, close files or

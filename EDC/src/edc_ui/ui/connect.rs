@@ -2,6 +2,7 @@ use std::{
     cell::RefCell,
     collections::HashMap,
     path::PathBuf,
+    pin::Pin,
     rc::Rc,
     sync::{Arc, RwLock},
     task::Poll,
@@ -9,6 +10,7 @@ use std::{
 
 use egui::{InnerResponse, RichText};
 use egui_glow::EguiGlow;
+use futures::Future;
 use glutin::{
     event_loop::{ControlFlow, EventLoop},
     window::Window,
@@ -17,6 +19,7 @@ use log::{debug, error, info};
 
 use crate::edcs_client::{
     blocking_client::{BlockingEdcsClient, ChannelEdcsRequest, ChannelEdcsResponse},
+    client::EdcsClient,
     edcs_proto::{edcs_response::Payload, EdcsStatus},
 };
 
@@ -82,7 +85,9 @@ impl UIElement for ConnectUI {
     fn handle_messages(&mut self) {
         let waker = futures::task::noop_waker();
         let mut cx = std::task::Context::from_waker(&waker);
-        if let Poll::Ready(Some(msg)) = self.client.borrow_mut().recv.poll_recv(&mut cx) {
+        if let Poll::Ready(Ok(msg)) =
+            Pin::new(&mut self.client.borrow_mut().recv.recv_async()).poll(&mut cx)
+        {
             self.pending_recv = false;
             debug!("set pending_recv to false");
             match msg {
@@ -148,22 +153,24 @@ impl UIElement for ConnectUI {
             self.pending_recv = true;
             match self.connection_stage {
                 ConnectionStage::Connect(true) => {
-                    push.blocking_send(ChannelEdcsRequest::NewClient(PathBuf::from(
+                    match push.send(ChannelEdcsRequest::NewClient(PathBuf::from(
                         &self.config_path,
-                    )))
-                    .expect("Failed to push NewClient");
+                    ))) {
+                        Err(e) => panic!("Err sending NewClient {}", e.to_string()),
+                        _ => {}
+                    }
                 }
                 ConnectionStage::SetupEdcs => {
-                    push.blocking_send(ChannelEdcsRequest::SetupEdcs {
+                    push.send(ChannelEdcsRequest::SetupEdcs {
                         bitrate: 100000000,
                         framerate: 60,
                     })
                     .expect("Failed to push SetupEdcs");
                 }
                 ConnectionStage::SetupStream => {
-                    push.blocking_send(ChannelEdcsRequest::SetupStream({
+                    push.send(ChannelEdcsRequest::SetupStream({
                         let mut x = HashMap::new();
-                        x.insert("vgpuId".to_owned(), "2".to_owned());
+                        x.insert("vgpuId".to_owned(), "1".to_owned());
                         x
                     }))
                     .expect("Failed to push SetupStream");
