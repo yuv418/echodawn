@@ -19,11 +19,10 @@ struct CLIArgs {
 
 // Mostly copied from https://github.com/tokio-rs/tls/blob/master/tokio-rustls/examples/client/src/main.rs (I mean… it's all boilerplate anyway)
 fn main() -> anyhow::Result<()> {
-    console_subscriber::init();
     let args = CLIArgs::parse();
     // TODO share code between EDCS and EDC for these kinds of things
     env_logger::Builder::new()
-        .filter_level(log::LevelFilter::Debug)
+        .filter_level(log::LevelFilter::Trace)
         .format(|buf, record| {
             use env_logger::fmt::Color;
             use log::Level;

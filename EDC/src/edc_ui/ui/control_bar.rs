@@ -7,7 +7,7 @@ use glutin::{
     event_loop::EventLoop,
     window::Window,
 };
-use log::info;
+use log::{debug, info};
 
 use crate::edcs_client::{
     blocking_client::{BlockingEdcsClient, ChannelEdcsRequest},
@@ -99,15 +99,20 @@ impl UIElement for ControlBarUI {
     ) {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
-                self.client
-                    .borrow()
-                    .push
-                    .try_send(ChannelEdcsRequest::WriteMouseMove {
-                        x: (position.x) as u32,
-                        y: (position.y) as u32,
-                    });
+                debug!("mouse move source {:?}", event);
+                debug!(
+                    "try send to self.client returns {:?}",
+                    self.client
+                        .borrow()
+                        .push
+                        .try_send(ChannelEdcsRequest::WriteMouseMove {
+                            x: (position.x) as u32,
+                            y: (position.y) as u32,
+                        })
+                );
             }
             WindowEvent::MouseInput { state, button, .. } => {
+                debug!("mouse move source {:?}", event);
                 self.client
                     .borrow()
                     .push

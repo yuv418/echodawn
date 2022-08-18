@@ -189,28 +189,35 @@ impl EdcsClient {
     }
     pub async fn write_mouse_move(&mut self, x: u32, y: u32) -> anyhow::Result<EdcsResponse> {
         debug!("Writing mouse move!");
-        self.send_message(EdcsMessage {
-            message_type: EdcsMessageType::WriteMouseEvent as i32,
-            payload: Some(edcs_message::Payload::MouseEvent(EdcsMouseEvent {
-                payload: Some(edcs_mouse_event::Payload::Move(EdcsMouseMove { x, y })),
-            })),
-        })
-        .await
+        let ret = self
+            .send_message(EdcsMessage {
+                message_type: EdcsMessageType::WriteMouseEvent as i32,
+                payload: Some(edcs_message::Payload::MouseEvent(EdcsMouseEvent {
+                    payload: Some(edcs_mouse_event::Payload::Move(EdcsMouseMove { x, y })),
+                })),
+            })
+            .await;
+
+        trace!("finished writing mouse move {:?}", ret);
+        ret
     }
     pub async fn write_mouse_button(
         &mut self,
         btn_typ: EdcsMouseButton,
         pressed: bool,
     ) -> anyhow::Result<EdcsResponse> {
-        self.send_message(EdcsMessage {
-            message_type: EdcsMessageType::WriteMouseEvent as i32,
-            payload: Some(edcs_message::Payload::MouseEvent(EdcsMouseEvent {
-                payload: Some(edcs_mouse_event::Payload::Button(EdcsMouseButtonData {
-                    btn_typ: btn_typ as i32,
-                    pressed,
+        let ret = self
+            .send_message(EdcsMessage {
+                message_type: EdcsMessageType::WriteMouseEvent as i32,
+                payload: Some(edcs_message::Payload::MouseEvent(EdcsMouseEvent {
+                    payload: Some(edcs_mouse_event::Payload::Button(EdcsMouseButtonData {
+                        btn_typ: btn_typ as i32,
+                        pressed,
+                    })),
                 })),
-            })),
-        })
-        .await
+            })
+            .await;
+        trace!("finished writing mouse button {:?}", ret);
+        ret
     }
 }
