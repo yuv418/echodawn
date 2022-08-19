@@ -83,6 +83,13 @@ EDSS_STATUS calInit(StrMap *calOptionDict, calConfig_t *calCfg) {
     ioctl(rtCfg.inputFd, UI_SET_ABSBIT, ABS_X);
     ioctl(rtCfg.inputFd, UI_SET_ABSBIT, ABS_Y);
 
+    struct uinput_abs_setup abssetup = {.code = ABS_X, .absinfo.maximum = 1920};
+    ioctl(rtCfg.inputFd, UI_ABS_SETUP, &abssetup);
+
+    abssetup.code = ABS_Y;
+    abssetup.absinfo.maximum = 1080;
+    ioctl(rtCfg.inputFd, UI_ABS_SETUP, &abssetup);
+
     struct uinput_setup usetup = {.id.bustype = BUS_USB,
                                   // TODO change this or remove this
                                   .id.vendor = 0x1234,
@@ -136,9 +143,10 @@ EDSS_STATUS calWriteMouseEvent(edssMouseEvent_t *ev) {
     switch (ev->type) {
     case CLICK:
         send_ev(EV_KEY, ev->payload.button.button, ev->payload.button.pressed);
+        break;
     case MOVE:
         send_ev(EV_ABS, ABS_X, ev->payload.move.x);
-        send_ev(EV_ABS, ABS_X, ev->payload.move.y);
+        send_ev(EV_ABS, ABS_Y, ev->payload.move.y);
         break;
     }
     // Report X/Y together
