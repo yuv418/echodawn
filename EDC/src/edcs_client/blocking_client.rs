@@ -54,7 +54,7 @@ pub struct BlockingEdcsClient {
 impl BlockingEdcsClient {
     pub fn new() -> Self {
         // There may be a lot of messages in the ring
-        let (ui_send, client_recv) = flume::bounded(1); // channel(32);
+        let (ui_send, client_recv) = flume::unbounded(); // channel(32);
         let (client_send, ui_recv) = flume::unbounded(); // channel(32);
 
         // No client until it's requested
@@ -70,7 +70,7 @@ impl BlockingEdcsClient {
         std::thread::spawn(move || {
             let edcs_client: Arc<Mutex<Option<EdcsClient>>> = Arc::new(Mutex::new(None));
             runtime.block_on(async move {
-                for req in client_recv.iter() {
+                while let Ok(req) = client_recv.recv_async().await {
                     tokio::spawn(Self::handle_req(
                         req,
                         edcs_client.clone(),
