@@ -183,7 +183,7 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg, char **sdpBuffer) {
         return EDSS_LIBAV_FAILURE;
     }
 
-    cdcCtx->gop_size = 60; // TODO optimize these values.
+    cdcCtx->gop_size = 180; // TODO optimize these values.
     cdcCtx->max_b_frames = 0;
     cdcCtx->height = calCfg->height;
     cdcCtx->width = calCfg->width;

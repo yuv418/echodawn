@@ -138,19 +138,18 @@ impl UIElement for ControlBarUI {
                 input,
                 is_synthetic,
             } => {
+                debug!("keyinput {:?}", input);
                 self.client
                     .borrow()
                     .push
-                    .try_send(ChannelEdcsRequest::WriteKeyboardEvent {
-                        key_data: EdcsKeyData {
-                            btn_typ: keyboard_event::virtual_key_code_to_linux_input(
-                                // Do we really want to crash the entire application because of this?
-                                input
-                                    .virtual_keycode
-                                    .expect("Failed to get the input's virtual keycode"),
-                            ),
-                            pressed: input.state == ElementState::Pressed,
-                        },
+                    .send(ChannelEdcsRequest::WriteKeyboardEvent {
+                        key_typ: keyboard_event::virtual_key_code_to_linux_input(
+                            // Do we really want to crash the entire application because of this?
+                            input
+                                .virtual_keycode
+                                .expect("Failed to get the input's virtual keycode"),
+                        ),
+                        pressed: input.state == ElementState::Pressed,
                     });
             }
             _ => {}

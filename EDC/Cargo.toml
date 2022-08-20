@@ -32,6 +32,7 @@ flume = { version = "0.10", features = [ "async" ] }
 async-mutex = "1"
 console-subscriber = "0.1"
 input-linux-sys = "0.7"
+thread-priority = "0.8"
 
 [build-dependencies]
 prost-build = "0.10"

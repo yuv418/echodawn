@@ -11,6 +11,7 @@ use flume::{Receiver, Sender};
 use futures::TryFutureExt;
 use log::{debug, trace};
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use thread_priority::{RealtimeThreadSchedulePolicy, ThreadPriority, ThreadSchedulePolicy};
 use tokio::runtime::Builder;
 
 // At this point, we may as well get rid of the methods in EdcsClient and just have the GUI send over the structs we want
@@ -33,7 +34,8 @@ pub enum ChannelEdcsRequest {
         pressed: bool,
     },
     WriteKeyboardEvent {
-        key_data: EdcsKeyData,
+        key_typ: i32,
+        pressed: bool,
     },
 }
 #[derive(Debug)]
@@ -52,7 +54,7 @@ pub struct BlockingEdcsClient {
 impl BlockingEdcsClient {
     pub fn new() -> Self {
         // There may be a lot of messages in the ring
-        let (ui_send, client_recv) = flume::bounded(1); // channel(32);
+        let (ui_send, client_recv) = flume::unbounded(); // channel(32);
         let (client_send, ui_recv) = flume::unbounded(); // channel(32);
 
         // No client until it's requested
@@ -60,16 +62,15 @@ impl BlockingEdcsClient {
             push: ui_send,
             recv: ui_recv,
         };
-        let runtime = Builder::new_multi_thread()
+        let runtime = Builder::new_current_thread()
             .enable_all()
             .build()
             .expect("Failed to build tokio runtime");
 
         std::thread::spawn(move || {
+            let edcs_client: Arc<Mutex<Option<EdcsClient>>> = Arc::new(Mutex::new(None));
             runtime.block_on(async move {
-                let edcs_client: Arc<Mutex<Option<EdcsClient>>> = Arc::new(Mutex::new(None));
-                while let Ok(req) = client_recv.recv_async().await {
-                    debug!("recv erquest");
+                for req in client_recv.iter() {
                     tokio::spawn(Self::handle_req(
                         req,
                         edcs_client.clone(),
@@ -77,7 +78,7 @@ impl BlockingEdcsClient {
                     ))
                     .await;
                 }
-            })
+            });
         });
 
         client
@@ -106,9 +107,9 @@ impl BlockingEdcsClient {
                                 edcs_client.setup_edcs(framerate, bitrate).await,
                             )
                         }
-                        ChannelEdcsRequest::SetupStream(options) => {
+                        ChannelEdcsRequest::SetupStream(ref options) => {
                             ChannelEdcsResponse::EdcsResponse(
-                                edcs_client.setup_stream(options).await,
+                                edcs_client.setup_stream(options.clone()).await,
                             )
                         }
                         ChannelEdcsRequest::StartStream => {
@@ -134,17 +135,20 @@ impl BlockingEdcsClient {
                             debug!("write mouse button finished");
                             ret
                         }),
-                        ChannelEdcsRequest::WriteKeyboardEvent { key_data } => {
+                        ChannelEdcsRequest::WriteKeyboardEvent { key_typ, pressed } => {
                             ChannelEdcsResponse::EdcsResponse({
-                                edcs_client.write_keyboard_event(key_data).await
+                                edcs_client.write_keyboard_event(key_typ, pressed).await
                             })
                         }
                     }
                 } else {
                     ChannelEdcsResponse::InvalidClient
                 };
-                trace!("going to return {:?} to ui", ret);
-                trace!("pushed response {:?} to ui", client_push.send(ret));
+
+                if let ChannelEdcsRequest::WriteMouseMove { .. } = &req {
+                } else {
+                    trace!("pushed response {:?} to ui", client_push.send(ret));
+                }
             }
 
             ChannelEdcsRequest::NewClient(path) => {

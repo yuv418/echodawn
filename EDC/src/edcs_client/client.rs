@@ -18,7 +18,7 @@ use crate::edcs_client::{
     config::ClientConfig,
     edcs_proto::{
         edcs_message, edcs_mouse_event, EdcsCalParams, EdcsKeyData, EdcsKeyboardEvent, EdcsMessage,
-        EdcsMessageType, EdcsMouseButton, EdcsMouseEvent, EdcsMouseMove, EdcsResponse,
+        EdcsMessageType, EdcsMouseButton, EdcsMouseEvent, EdcsMouseMove, EdcsResponse, EdcsStatus,
         EdcsStreamParams,
     },
 };
@@ -104,7 +104,11 @@ impl EdcsClient {
     }
 
     // Handle sending RPCs to the EDCS
-    async fn send_message(&mut self, msg: EdcsMessage) -> anyhow::Result<EdcsResponse> {
+    async fn send_message(
+        &mut self,
+        msg: EdcsMessage,
+        ignore_response: bool,
+    ) -> anyhow::Result<EdcsResponse> {
         let mut delimiter_buf: Vec<u8> = vec![];
         // Write length delimiter first
         encode_length_delimiter(msg.encoded_len(), &mut delimiter_buf)?;
@@ -127,21 +131,28 @@ impl EdcsClient {
         trace!("Writing data {:?} to PB", msg_buf);
         self.writer.write_all(&mut msg_buf).await?;
 
-        let mut resp_len = 0;
-        // Read response delimiter
-        while let Ok(_) = self.reader.read_exact(&mut delimiter_buf).await {
-            trace!("Read delimiter buf {:?}", delimiter_buf);
-            trace!("resp_len = {}", resp_len);
+        if !ignore_response {
+            let mut resp_len = 0;
+            // Read response delimiter
+            while let Ok(_) = self.reader.read_exact(&mut delimiter_buf).await {
+                trace!("Read delimiter buf {:?}", delimiter_buf);
+                trace!("resp_len = {}", resp_len);
 
-            resp_len = decode_length_delimiter(&delimiter_buf[..])?;
-            let mut resp_buf = vec![0; resp_len];
-            while let Ok(_) = self.reader.read_exact(&mut resp_buf).await {
-                trace!("EDCS response data {:?}", &resp_buf[..]);
-                return EdcsResponse::decode(&resp_buf[..])
-                    .with_context(|| "Failed to parse EDCS response");
+                resp_len = decode_length_delimiter(&delimiter_buf[..])?;
+                let mut resp_buf = vec![0; resp_len];
+                while let Ok(_) = self.reader.read_exact(&mut resp_buf).await {
+                    trace!("EDCS response data {:?}", &resp_buf[..]);
+                    return EdcsResponse::decode(&resp_buf[..])
+                        .with_context(|| "Failed to parse EDCS response");
+                }
             }
+            trace!("Resp len is {}", resp_len);
+        } else {
+            return Ok(EdcsResponse {
+                status: EdcsStatus::Ok as i32,
+                payload: None,
+            });
         }
-        trace!("Resp len is {}", resp_len);
 
         Err(anyhow!("Did not read EDCS response"))
     }
@@ -151,51 +162,66 @@ impl EdcsClient {
         framerate: u32,
         bitrate: u32,
     ) -> anyhow::Result<EdcsResponse> {
-        self.send_message(EdcsMessage {
-            message_type: EdcsMessageType::SetupEdcs as i32,
-            payload: Some(edcs_message::Payload::SetupEdcsParams(EdcsStreamParams {
-                framerate,
-                bitrate,
-            })),
-        })
+        self.send_message(
+            EdcsMessage {
+                message_type: EdcsMessageType::SetupEdcs as i32,
+                payload: Some(edcs_message::Payload::SetupEdcsParams(EdcsStreamParams {
+                    framerate,
+                    bitrate,
+                })),
+            },
+            false,
+        )
         .await
     }
     pub async fn setup_stream(
         &mut self,
         cal_option_dict: HashMap<String, String>,
     ) -> anyhow::Result<EdcsResponse> {
-        self.send_message(EdcsMessage {
-            message_type: EdcsMessageType::SetupStream as i32,
-            payload: Some(edcs_message::Payload::SetupStreamParams(EdcsCalParams {
-                cal_option_dict,
-            })),
-        })
+        self.send_message(
+            EdcsMessage {
+                message_type: EdcsMessageType::SetupStream as i32,
+                payload: Some(edcs_message::Payload::SetupStreamParams(EdcsCalParams {
+                    cal_option_dict,
+                })),
+            },
+            false,
+        )
         .await
     }
     pub async fn init_stream(&mut self) -> anyhow::Result<EdcsResponse> {
-        self.send_message(EdcsMessage {
-            message_type: EdcsMessageType::StartStream as i32,
-            payload: None,
-        })
+        self.send_message(
+            EdcsMessage {
+                message_type: EdcsMessageType::StartStream as i32,
+                payload: None,
+            },
+            false,
+        )
         .await
     }
 
     pub async fn close_stream(&mut self) -> anyhow::Result<EdcsResponse> {
-        self.send_message(EdcsMessage {
-            message_type: EdcsMessageType::CloseStream as i32,
-            payload: None,
-        })
+        self.send_message(
+            EdcsMessage {
+                message_type: EdcsMessageType::CloseStream as i32,
+                payload: None,
+            },
+            false,
+        )
         .await
     }
     pub async fn write_mouse_move(&mut self, x: u32, y: u32) -> anyhow::Result<EdcsResponse> {
         debug!("Writing mouse move!");
         let ret = self
-            .send_message(EdcsMessage {
-                message_type: EdcsMessageType::WriteMouseEvent as i32,
-                payload: Some(edcs_message::Payload::MouseEvent(EdcsMouseEvent {
-                    payload: Some(edcs_mouse_event::Payload::Move(EdcsMouseMove { x, y })),
-                })),
-            })
+            .send_message(
+                EdcsMessage {
+                    message_type: EdcsMessageType::WriteMouseEvent as i32,
+                    payload: Some(edcs_message::Payload::MouseEvent(EdcsMouseEvent {
+                        payload: Some(edcs_mouse_event::Payload::Move(EdcsMouseMove { x, y })),
+                    })),
+                },
+                false,
+            )
             .await;
 
         trace!("finished writing mouse move {:?}", ret);
@@ -207,15 +233,18 @@ impl EdcsClient {
         pressed: bool,
     ) -> anyhow::Result<EdcsResponse> {
         let ret = self
-            .send_message(EdcsMessage {
-                message_type: EdcsMessageType::WriteMouseEvent as i32,
-                payload: Some(edcs_message::Payload::MouseEvent(EdcsMouseEvent {
-                    payload: Some(edcs_mouse_event::Payload::Button(EdcsKeyData {
-                        btn_typ: btn_typ as i32,
-                        pressed,
+            .send_message(
+                EdcsMessage {
+                    message_type: EdcsMessageType::WriteMouseEvent as i32,
+                    payload: Some(edcs_message::Payload::MouseEvent(EdcsMouseEvent {
+                        payload: Some(edcs_mouse_event::Payload::Button(EdcsKeyData {
+                            btn_typ: btn_typ as i32,
+                            pressed,
+                        })),
                     })),
-                })),
-            })
+                },
+                true,
+            )
             .await;
         trace!("finished writing mouse button {:?}", ret);
         ret
@@ -223,15 +252,22 @@ impl EdcsClient {
     // Using the struct wholesale here seems a bit inconsistent with the other functions
     pub async fn write_keyboard_event(
         &mut self,
-        key_dat: EdcsKeyData,
+        key_typ: i32,
+        pressed: bool,
     ) -> anyhow::Result<EdcsResponse> {
         let ret = self
-            .send_message(EdcsMessage {
-                message_type: EdcsMessageType::WriteKeyboardEvent as i32,
-                payload: Some(edcs_message::Payload::KeyboardEvent(EdcsKeyboardEvent {
-                    key_dat: Some(key_dat),
-                })),
-            })
+            .send_message(
+                EdcsMessage {
+                    message_type: EdcsMessageType::WriteKeyboardEvent as i32,
+                    payload: Some(edcs_message::Payload::KeyboardEvent(EdcsKeyboardEvent {
+                        key_dat: Some(EdcsKeyData {
+                            btn_typ: key_typ,
+                            pressed,
+                        }),
+                    })),
+                },
+                true,
+            )
             .await;
         trace!("finished writing mouse button {:?}", ret);
         ret
