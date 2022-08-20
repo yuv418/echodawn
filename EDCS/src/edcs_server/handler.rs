@@ -19,7 +19,9 @@ impl EdcsHandler {
         &mut self,
         cfg: Arc<config::EdcsConfig>,
         msg: EdcsMessage,
-    ) -> anyhow::Result<EdcsResponse> {
+        // Some of the events (eg. keyboard/mouse) won't return a response since we don't want to waste time sending back thousands of "Ok" messages
+        // In the future if we want to find failed K/M events we can create a separate request for that
+    ) -> anyhow::Result<Option<EdcsResponse>> {
         // Handle the input
 
         let mut response_payload = None;
@@ -35,13 +37,13 @@ impl EdcsHandler {
                         let stream_params = match msg.payload {
                             Some(edcs_message::Payload::SetupEdcsParams(p)) => p,
                             _ => {
-                                return Ok(EdcsResponse {
+                                return Ok(Some(EdcsResponse {
                                     status: EdcsStatus::InvalidRequest as i32,
                                     payload: Some(edcs_response::Payload::InvalidRequestData(
                                         "The given payload is not of type SetupEdcsParams"
                                             .to_string(),
                                     )),
-                                })
+                                }))
                             }
                         };
 
@@ -94,13 +96,13 @@ impl EdcsHandler {
                                         d.cal_option_dict
                                     }
                                     // TODO keep it dry (we will have to check requestss for all message types)
-                                    _ => return Ok(EdcsResponse {
+                                    _ => return Ok(Some(EdcsResponse {
                                         status: EdcsStatus::InvalidRequest as i32,
                                         payload: Some(edcs_response::Payload::InvalidRequestData(
                                             "The given payload is not of type SetupEdcsParams"
                                                 .to_string(),
                                         )),
-                                    }),
+                                    })),
                                 };
                                 match adapter.init_server() {
                                     Ok(_) => {
@@ -164,16 +166,12 @@ impl EdcsHandler {
                                 edcs_status = EdcsStatus::StreamNotStarted;
                             }
                         }
+                        // TODO for both of these events, we can make the EDSS/EDCS return void
                         EdcsMessageType::WriteMouseEvent => {
                             if adapter.streaming() {
                                 match adapter.write_mouse_event(match msg.payload {
                                     Some(edcs_message::Payload::MouseEvent(mev)) => mev,
-                                    _ => {
-                                        return Ok(EdcsResponse {
-                                            status: EdcsStatus::InvalidRequest as i32,
-                                            payload: None,
-                                        })
-                                    }
+                                    _ => return Ok(None),
                                 }) {
                                     Err(e) => {
                                         edcs_status = EdcsStatus::EdssErr;
@@ -190,12 +188,7 @@ impl EdcsHandler {
                             if adapter.streaming() {
                                 match adapter.write_keyboard_event(match msg.payload {
                                     Some(edcs_message::Payload::KeyboardEvent(kev)) => kev,
-                                    _ => {
-                                        return Ok(EdcsResponse {
-                                            status: EdcsStatus::InvalidRequest as i32,
-                                            payload: None,
-                                        })
-                                    }
+                                    _ => return Ok(None),
                                 }) {
                                     Err(e) => {
                                         edcs_status = EdcsStatus::EdssErr;
@@ -220,9 +213,9 @@ impl EdcsHandler {
         }
 
         // Send out the response
-        Ok(EdcsResponse {
+        Ok(Some(EdcsResponse {
             status: edcs_status as i32, // NOTE is there a better way to do this?
             payload: response_payload,
-        })
+        }))
     }
 }

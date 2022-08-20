@@ -106,7 +106,7 @@ impl UIElement for ControlBarUI {
                     self.client
                         .borrow()
                         .push
-                        .try_send(ChannelEdcsRequest::WriteMouseMove {
+                        .send(ChannelEdcsRequest::WriteMouseMove {
                             x: (position.x) as u32,
                             y: (position.y) as u32,
                         })

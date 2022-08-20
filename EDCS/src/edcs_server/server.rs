@@ -115,30 +115,33 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
 
                         // Write the response data after flushing the writer
                         writer.flush().await?;
+                        // For performance reasons, not all requests return a response since it would be
+                        // unnecessary to respond to a mouse move event.
+                        if let Some(edcs_response) = edcs_response {
+                            // TODO is this the most efficient way to do this?
+                            // The first ten bytes are the length delimiter, then the next bit is the actual protobuf
+                            let encoded_len = edcs_response.encoded_len();
+                            let mut send_delimiter_buf: Vec<u8> = vec![];
+                            encode_length_delimiter(
+                                edcs_response.encoded_len(),
+                                &mut send_delimiter_buf,
+                            )?;
+                            // Pad the buffer.
+                            while send_delimiter_buf.len() < 10 {
+                                send_delimiter_buf.push(0);
+                            }
+                            trace!("Delimiter buffer is {:?}", send_delimiter_buf);
+                            trace!("Response length should be {}", edcs_response.encoded_len());
+                            trace!(
+                                "Need {} bytes for delim buffer",
+                                length_delimiter_len(encoded_len)
+                            );
+                            writer.write_all(&mut send_delimiter_buf).await?;
 
-                        // TODO is this the most efficient way to do this?
-                        // The first ten bytes are the length delimiter, then the next bit is the actual protobuf
-                        let encoded_len = edcs_response.encoded_len();
-                        let mut send_delimiter_buf: Vec<u8> = vec![];
-                        encode_length_delimiter(
-                            edcs_response.encoded_len(),
-                            &mut send_delimiter_buf,
-                        )?;
-                        // Pad the buffer.
-                        while send_delimiter_buf.len() < 10 {
-                            send_delimiter_buf.push(0);
+                            let mut response_buffer = edcs_response.encode_to_vec();
+                            trace!("Response buffer is {:?}", response_buffer);
+                            writer.write_all(&mut response_buffer).await?;
                         }
-                        trace!("Delimiter buffer is {:?}", send_delimiter_buf);
-                        trace!("Response length should be {}", edcs_response.encoded_len());
-                        trace!(
-                            "Need {} bytes for delim buffer",
-                            length_delimiter_len(encoded_len)
-                        );
-                        writer.write_all(&mut send_delimiter_buf).await?;
-
-                        let mut response_buffer = edcs_response.encode_to_vec();
-                        trace!("Response buffer is {:?}", response_buffer);
-                        writer.write_all(&mut response_buffer).await?;
                     }
                     break;
                 }

@@ -6,7 +6,7 @@ use glutin::{
     event_loop::ControlFlow,
     window::{Window, WindowId},
 };
-use log::info;
+use log::{info, trace};
 
 use crate::edcs_client::blocking_client::BlockingEdcsClient;
 
@@ -14,7 +14,7 @@ pub struct DebugArea {
     debug_messages: VecDeque<String>,
     msg_limit: usize,
     // Control, Alt, 9
-    disable_modifiers: (bool, bool, bool),
+    disable_modifiers: (bool, bool, bool, bool),
 }
 
 impl DebugArea {
@@ -22,7 +22,7 @@ impl DebugArea {
         Self {
             debug_messages: VecDeque::with_capacity(msg_limit),
             msg_limit,
-            disable_modifiers: (false, false, false),
+            disable_modifiers: (false, false, false, false),
         }
     }
     pub fn render(
@@ -30,7 +30,7 @@ impl DebugArea {
         ctx: &egui::Context,
         ctrl_flow: &mut ControlFlow,
     ) -> Option<InnerResponse<()>> {
-        if self.disable_modifiers != (true, true, true) {
+        if self.disable_modifiers.3 {
             Some(
                 egui::Area::new("debug_area")
                     .fixed_pos(egui::pos2(100.0, 700.0))
@@ -70,7 +70,7 @@ impl DebugArea {
 
     pub fn handle_window_event(&mut self, event: &WindowEvent) {
         // TODO dry the match branches
-        let disable_modifiers_save = self.disable_modifiers;
+        let disable_modifiers_save = self.disable_modifiers.clone();
         match event {
             WindowEvent::KeyboardInput {
                 device_id,
@@ -80,42 +80,48 @@ impl DebugArea {
                 Some(VirtualKeyCode::LControl | VirtualKeyCode::RControl)
                     if input.state == ElementState::Pressed =>
                 {
-                    if self.disable_modifiers == (true, true, true) {
-                        self.disable_modifiers.0 = false;
+                    self.disable_modifiers.0 = if disable_modifiers_save.3 {
+                        false
                     } else {
-                        self.disable_modifiers.0 = true;
-                    }
-                    info!("disabled modifiers {:?}", self.disable_modifiers);
+                        true
+                    };
+                    trace!("disabled modifiers {:?}", self.disable_modifiers);
                 }
-                Some(VirtualKeyCode::LAlt | VirtualKeyCode::RAlt)
-                    if input.state == ElementState::Pressed && self.disable_modifiers.0 =>
-                {
-                    if self.disable_modifiers == (true, true, true) {
-                        self.disable_modifiers.1 = false;
-                    } else {
-                        self.disable_modifiers.1 = true;
-                    }
-                    info!("disabled modifiers {:?}", self.disable_modifiers);
-                }
-                Some(VirtualKeyCode::Semicolon)
-                    if input.state == ElementState::Pressed && self.disable_modifiers.1 =>
-                {
-                    if self.disable_modifiers == (true, true, true) {
-                        self.disable_modifiers.2 = false;
-                    } else {
-                        self.disable_modifiers.2 = true;
-                    }
-                    info!("disabled modifiers {:?}", self.disable_modifiers);
-                }
-                _ => {
-                    if disable_modifiers_save != (true, true, true) {
-                        self.disable_modifiers = (false, false, false)
-                    } else {
-                        self.disable_modifiers = (true, true, true)
+                Some(VirtualKeyCode::LAlt | VirtualKeyCode::RAlt) => {
+                    if (self.disable_modifiers.3 && !self.disable_modifiers.0)
+                        || (!self.disable_modifiers.3 && self.disable_modifiers.0)
+                    {
+                        self.disable_modifiers.1 = if disable_modifiers_save.3 {
+                            false
+                        } else {
+                            true
+                        };
+                        trace!("disabled modifiers {:?}", self.disable_modifiers);
                     }
                 }
+                Some(VirtualKeyCode::Semicolon) => {
+                    if (self.disable_modifiers.3 && !self.disable_modifiers.1)
+                        || (!self.disable_modifiers.3 && self.disable_modifiers.1)
+                    {
+                        self.disable_modifiers.2 = if disable_modifiers_save.3 {
+                            false
+                        } else {
+                            true
+                        };
+                        trace!("disabled modifiers {:?}", self.disable_modifiers);
+                    }
+                }
+                _ => {}
             },
             _ => {}
+        }
+        if self.disable_modifiers.0 && self.disable_modifiers.1 && self.disable_modifiers.2 {
+            self.disable_modifiers.3 = true;
+        } else if !self.disable_modifiers.0
+            && !self.disable_modifiers.1
+            && !self.disable_modifiers.2
+        {
+            self.disable_modifiers.3 = false;
         }
     }
 }

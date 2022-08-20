@@ -54,7 +54,7 @@ pub struct BlockingEdcsClient {
 impl BlockingEdcsClient {
     pub fn new() -> Self {
         // There may be a lot of messages in the ring
-        let (ui_send, client_recv) = flume::unbounded(); // channel(32);
+        let (ui_send, client_recv) = flume::bounded(1); // channel(32);
         let (client_send, ui_recv) = flume::unbounded(); // channel(32);
 
         // No client until it's requested
