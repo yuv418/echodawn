@@ -210,7 +210,7 @@ impl EdcsClient {
         )
         .await
     }
-    pub async fn write_mouse_move(&mut self, x: u32, y: u32) -> anyhow::Result<EdcsResponse> {
+    pub async fn write_mouse_move(&mut self, x: f64, y: f64) -> anyhow::Result<EdcsResponse> {
         debug!("Writing mouse move!");
         let ret = self
             .send_message(

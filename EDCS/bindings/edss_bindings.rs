@@ -5820,19 +5820,19 @@ pub union edssMouseEvent_t__bindgen_ty_1 {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct edssMouseEvent_t__bindgen_ty_1_move {
-    pub x: u32,
-    pub y: u32,
+    pub x: f64,
+    pub y: f64,
 }
 #[test]
 fn bindgen_test_layout_edssMouseEvent_t__bindgen_ty_1_move() {
     assert_eq!(
         ::std::mem::size_of::<edssMouseEvent_t__bindgen_ty_1_move>(),
-        8usize,
+        16usize,
         concat!("Size of: ", stringify!(edssMouseEvent_t__bindgen_ty_1_move))
     );
     assert_eq!(
         ::std::mem::align_of::<edssMouseEvent_t__bindgen_ty_1_move>(),
-        4usize,
+        8usize,
         concat!(
             "Alignment of ",
             stringify!(edssMouseEvent_t__bindgen_ty_1_move)
@@ -5864,7 +5864,7 @@ fn bindgen_test_layout_edssMouseEvent_t__bindgen_ty_1_move() {
                 let ptr = uninit.as_ptr();
                 ::std::ptr::addr_of!((*ptr).y) as usize - ptr as usize
             },
-            4usize,
+            8usize,
             concat!(
                 "Offset of field: ",
                 stringify!(edssMouseEvent_t__bindgen_ty_1_move),
@@ -5879,12 +5879,12 @@ fn bindgen_test_layout_edssMouseEvent_t__bindgen_ty_1_move() {
 fn bindgen_test_layout_edssMouseEvent_t__bindgen_ty_1() {
     assert_eq!(
         ::std::mem::size_of::<edssMouseEvent_t__bindgen_ty_1>(),
-        8usize,
+        16usize,
         concat!("Size of: ", stringify!(edssMouseEvent_t__bindgen_ty_1))
     );
     assert_eq!(
         ::std::mem::align_of::<edssMouseEvent_t__bindgen_ty_1>(),
-        4usize,
+        8usize,
         concat!("Alignment of ", stringify!(edssMouseEvent_t__bindgen_ty_1))
     );
     fn test_field_move() {
@@ -5926,12 +5926,12 @@ fn bindgen_test_layout_edssMouseEvent_t__bindgen_ty_1() {
 fn bindgen_test_layout_edssMouseEvent_t() {
     assert_eq!(
         ::std::mem::size_of::<edssMouseEvent_t>(),
-        12usize,
+        24usize,
         concat!("Size of: ", stringify!(edssMouseEvent_t))
     );
     assert_eq!(
         ::std::mem::align_of::<edssMouseEvent_t>(),
-        4usize,
+        8usize,
         concat!("Alignment of ", stringify!(edssMouseEvent_t))
     );
     fn test_field_type() {
@@ -5958,7 +5958,7 @@ fn bindgen_test_layout_edssMouseEvent_t() {
                 let ptr = uninit.as_ptr();
                 ::std::ptr::addr_of!((*ptr).payload) as usize - ptr as usize
             },
-            4usize,
+            8usize,
             concat!(
                 "Offset of field: ",
                 stringify!(edssMouseEvent_t),

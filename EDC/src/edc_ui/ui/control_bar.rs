@@ -107,8 +107,8 @@ impl UIElement for ControlBarUI {
                         .borrow()
                         .push
                         .send(ChannelEdcsRequest::WriteMouseMove {
-                            x: (position.x) as u32,
-                            y: (position.y) as u32,
+                            x: position.x as f64,
+                            y: position.y as f64,
                         })
                 );
             }

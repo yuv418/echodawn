@@ -45,8 +45,8 @@ message EdcsMouseEvent {
 message EdcsKeyboardEvent { EdcsKeyData key_dat = 1; }
 
 message EdcsMouseMove {
-    uint32 x = 1;
-    uint32 y = 2;
+    double x = 1;
+    double y = 2;
 }
 
 message EdcsKeyData {

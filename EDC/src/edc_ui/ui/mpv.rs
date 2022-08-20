@@ -77,6 +77,7 @@ impl MPVCtx {
             }
 
             Self::mpv_set_opt(mpv, "profile", "low-latency");
+            Self::mpv_set_opt(mpv, "rtsp-transport", "lavc");
             Self::mpv_set_opt(mpv, "video-latency-hacks", "yes");
             Self::mpv_set_opt(mpv, "vd-lavc-threads", "1");
             Self::mpv_set_opt(mpv, "no-cache", "yes");
@@ -179,10 +180,10 @@ impl MPVCtx {
     pub fn handle_user_event(&self, window: &Window, ctrl_flow: &ControlFlow, event: &MPVEvent) {
         match event {
             MPVEvent::MPVRenderUpdate => {
-                unsafe {
-                    mpv_render_context_update(self.mpv_gl);
+                let flags = unsafe { mpv_render_context_update(self.mpv_gl) };
+                if (flags & mpv_render_update_flag_MPV_RENDER_UPDATE_FRAME as u64) != 0 {
+                    window.request_redraw();
                 }
-                window.request_redraw();
             }
             MPVEvent::MPVEventUpdate => loop {
                 let mpv_event = unsafe { mpv_wait_event(self.mpv, 0.0) };

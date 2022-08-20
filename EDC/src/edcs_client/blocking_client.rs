@@ -26,8 +26,8 @@ pub enum ChannelEdcsRequest {
     StartStream,
     CloseStream,
     WriteMouseMove {
-        x: u32,
-        y: u32,
+        x: f64,
+        y: f64,
     },
     WriteMouseButton {
         button_typ: EdcsMouseButton,

@@ -47,8 +47,8 @@ typedef struct {
 
     union {
         struct move {
-            uint32_t x;
-            uint32_t y;
+            double x;
+            double y;
         } move;
 
         edssKeyData_t button;
