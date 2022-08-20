@@ -77,7 +77,6 @@ impl MPVCtx {
             }
 
             Self::mpv_set_opt(mpv, "profile", "low-latency");
-            Self::mpv_set_opt(mpv, "rtsp-transport", "lavf");
             Self::mpv_set_opt(mpv, "video-latency-hacks", "yes");
             Self::mpv_set_opt(mpv, "vd-lavc-threads", "1");
             Self::mpv_set_opt(mpv, "no-cache", "yes");

@@ -92,6 +92,7 @@ impl UICtx {
 
         self.egui_ctx.on_event(&event);
 
+        self.debug_area.borrow_mut().handle_window_event(&event);
         self.ui_element
             .handle_window_event(window, ctrl_flow, window_id, &event);
     }
