@@ -31,6 +31,12 @@ typedef struct {
     // Width/height.
 } edssConfig_t;
 
+/// Common input data struct
+typedef struct {
+    int32_t button;
+    bool pressed;
+} edssKeyData_t;
+
 /**
  * Mouse event struct
  */
@@ -45,13 +51,17 @@ typedef struct {
             uint32_t y;
         } move;
 
-        struct button {
-            uint32_t button;
-            bool pressed;
-        } button;
+        edssKeyData_t button;
     } payload;
 
 } edssMouseEvent_t;
+
+/**
+ * Keyboard event struct
+ */
+typedef struct {
+    edssKeyData_t keyData;
+} edssKeyboardEvent_t;
 
 /**
  * Initialize the server. This will allocate and initialize various FFmpeg
@@ -61,7 +71,8 @@ typedef struct {
  * function takes a pointer to a char* (sdpBuffer), which will be allocated in
  * the function and used to store the resulting SDP data. The sdpBuffer will be
  * NULL if the function returned somethinng other than EDSS_OK.  */
-EDSS_STATUS edssInitServer(edssConfig_t *cfg, char **sdpBuffer);
+EDSS_STATUS
+edssInitServer(edssConfig_t *cfg, char **sdpBuffer);
 
 /** Begin the SRTP server main loop, and begin the capture thread. NOTE that
  * this function blocks. TODO make this function not block by running the
@@ -73,6 +84,9 @@ EDSS_STATUS edssCloseStreaming();
 
 /** Write a mouse event to the CAL */
 EDSS_STATUS edssWriteMouseEvent(edssMouseEvent_t *ev);
+
+/** Write a keyboard event to the CAL */
+EDSS_STATUS edssWriteKeyboardEvent(edssKeyboardEvent_t *ev);
 
 /**
  * Update the SRTP stream's to the new cfg pointer (we only pass a new pointer

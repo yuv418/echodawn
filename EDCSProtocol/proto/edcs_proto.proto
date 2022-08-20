@@ -8,6 +8,7 @@ enum EdcsMessageType {
     UPDATE_STREAM = 3;
     SETUP_STREAM = 4;
     WRITE_MOUSE_EVENT = 5;
+    WRITE_KEYBOARD_EVENT = 6;
 }
 
 enum EdcsStatus {
@@ -29,23 +30,29 @@ message EdcsMessage {
         EdcsStreamParams update_stream_params = 3;
         EdcsCALParams setup_stream_params = 4;
         EdcsMouseEvent mouse_event = 5;
+        EdcsKeyboardEvent keyboard_event = 6;
     }
 }
 
 message EdcsMouseEvent {
     oneof payload {
         EdcsMouseMove move = 2;
-        EdcsMouseButtonData button = 3;
+        // Mouse buttons are "keys"
+        EdcsKeyData button = 3;
     }
 }
+
+message EdcsKeyboardEvent { EdcsKeyData key_dat = 1; }
 
 message EdcsMouseMove {
     uint32 x = 1;
     uint32 y = 2;
 }
 
-message EdcsMouseButtonData {
-    EdcsMouseButton btn_typ = 1;
+message EdcsKeyData {
+    // This is the linux input keycode, which gets translated for multiplatform
+    // things.
+    int32 btn_typ = 1;
     bool pressed = 2;
 }
 

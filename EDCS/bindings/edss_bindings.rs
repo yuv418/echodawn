@@ -5747,6 +5747,60 @@ fn bindgen_test_layout_edssConfig_t() {
     }
     test_field_calOptionDict();
 }
+#[doc = " Common input data struct"]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct edssKeyData_t {
+    pub button: i32,
+    pub pressed: bool,
+}
+#[test]
+fn bindgen_test_layout_edssKeyData_t() {
+    assert_eq!(
+        ::std::mem::size_of::<edssKeyData_t>(),
+        8usize,
+        concat!("Size of: ", stringify!(edssKeyData_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<edssKeyData_t>(),
+        4usize,
+        concat!("Alignment of ", stringify!(edssKeyData_t))
+    );
+    fn test_field_button() {
+        assert_eq!(
+            unsafe {
+                let uninit = ::std::mem::MaybeUninit::<edssKeyData_t>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).button) as usize - ptr as usize
+            },
+            0usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(edssKeyData_t),
+                "::",
+                stringify!(button)
+            )
+        );
+    }
+    test_field_button();
+    fn test_field_pressed() {
+        assert_eq!(
+            unsafe {
+                let uninit = ::std::mem::MaybeUninit::<edssKeyData_t>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).pressed) as usize - ptr as usize
+            },
+            4usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(edssKeyData_t),
+                "::",
+                stringify!(pressed)
+            )
+        );
+    }
+    test_field_pressed();
+}
 pub const edssMouseEventType_t_CLICK: edssMouseEventType_t = 0;
 pub const edssMouseEventType_t_MOVE: edssMouseEventType_t = 1;
 #[doc = " Mouse event struct"]
@@ -5761,7 +5815,7 @@ pub struct edssMouseEvent_t {
 #[derive(Copy, Clone)]
 pub union edssMouseEvent_t__bindgen_ty_1 {
     pub move_: edssMouseEvent_t__bindgen_ty_1_move,
-    pub button: edssMouseEvent_t__bindgen_ty_1_button,
+    pub button: edssKeyData_t,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -5820,67 +5874,6 @@ fn bindgen_test_layout_edssMouseEvent_t__bindgen_ty_1_move() {
         );
     }
     test_field_y();
-}
-#[repr(C)]
-#[derive(Debug, Copy, Clone)]
-pub struct edssMouseEvent_t__bindgen_ty_1_button {
-    pub button: u32,
-    pub pressed: bool,
-}
-#[test]
-fn bindgen_test_layout_edssMouseEvent_t__bindgen_ty_1_button() {
-    assert_eq!(
-        ::std::mem::size_of::<edssMouseEvent_t__bindgen_ty_1_button>(),
-        8usize,
-        concat!(
-            "Size of: ",
-            stringify!(edssMouseEvent_t__bindgen_ty_1_button)
-        )
-    );
-    assert_eq!(
-        ::std::mem::align_of::<edssMouseEvent_t__bindgen_ty_1_button>(),
-        4usize,
-        concat!(
-            "Alignment of ",
-            stringify!(edssMouseEvent_t__bindgen_ty_1_button)
-        )
-    );
-    fn test_field_button() {
-        assert_eq!(
-            unsafe {
-                let uninit =
-                    ::std::mem::MaybeUninit::<edssMouseEvent_t__bindgen_ty_1_button>::uninit();
-                let ptr = uninit.as_ptr();
-                ::std::ptr::addr_of!((*ptr).button) as usize - ptr as usize
-            },
-            0usize,
-            concat!(
-                "Offset of field: ",
-                stringify!(edssMouseEvent_t__bindgen_ty_1_button),
-                "::",
-                stringify!(button)
-            )
-        );
-    }
-    test_field_button();
-    fn test_field_pressed() {
-        assert_eq!(
-            unsafe {
-                let uninit =
-                    ::std::mem::MaybeUninit::<edssMouseEvent_t__bindgen_ty_1_button>::uninit();
-                let ptr = uninit.as_ptr();
-                ::std::ptr::addr_of!((*ptr).pressed) as usize - ptr as usize
-            },
-            4usize,
-            concat!(
-                "Offset of field: ",
-                stringify!(edssMouseEvent_t__bindgen_ty_1_button),
-                "::",
-                stringify!(pressed)
-            )
-        );
-    }
-    test_field_pressed();
 }
 #[test]
 fn bindgen_test_layout_edssMouseEvent_t__bindgen_ty_1() {
@@ -5976,6 +5969,42 @@ fn bindgen_test_layout_edssMouseEvent_t() {
     }
     test_field_payload();
 }
+#[doc = " Keyboard event struct"]
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct edssKeyboardEvent_t {
+    pub keyData: edssKeyData_t,
+}
+#[test]
+fn bindgen_test_layout_edssKeyboardEvent_t() {
+    assert_eq!(
+        ::std::mem::size_of::<edssKeyboardEvent_t>(),
+        8usize,
+        concat!("Size of: ", stringify!(edssKeyboardEvent_t))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<edssKeyboardEvent_t>(),
+        4usize,
+        concat!("Alignment of ", stringify!(edssKeyboardEvent_t))
+    );
+    fn test_field_keyData() {
+        assert_eq!(
+            unsafe {
+                let uninit = ::std::mem::MaybeUninit::<edssKeyboardEvent_t>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).keyData) as usize - ptr as usize
+            },
+            0usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(edssKeyboardEvent_t),
+                "::",
+                stringify!(keyData)
+            )
+        );
+    }
+    test_field_keyData();
+}
 extern "C" {
     #[doc = " Initialize the server. This will allocate and initialize various FFmpeg"]
     #[doc = " structures with the values provided from the provided `cfg` variable."]
@@ -6002,6 +6031,10 @@ extern "C" {
 extern "C" {
     #[doc = " Write a mouse event to the CAL"]
     pub fn edssWriteMouseEvent(ev: *mut edssMouseEvent_t) -> EDSS_STATUS;
+}
+extern "C" {
+    #[doc = " Write a keyboard event to the CAL"]
+    pub fn edssWriteKeyboardEvent(ev: *mut edssKeyboardEvent_t) -> EDSS_STATUS;
 }
 extern "C" {
     #[doc = " Update the SRTP stream's to the new cfg pointer (we only pass a new pointer"]

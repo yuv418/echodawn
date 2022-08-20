@@ -11,7 +11,8 @@ use log::{debug, info};
 
 use crate::edcs_client::{
     blocking_client::{BlockingEdcsClient, ChannelEdcsRequest},
-    edcs_proto::EdcsMouseButton,
+    edcs_proto::{EdcsKeyData, EdcsMouseButton},
+    keyboard_event,
 };
 
 use super::{
@@ -116,7 +117,7 @@ impl UIElement for ControlBarUI {
                 self.client
                     .borrow()
                     .push
-                    .try_send(ChannelEdcsRequest::WriteMouseButton {
+                    .send(ChannelEdcsRequest::WriteMouseButton {
                         button_typ: match button {
                             glutin::event::MouseButton::Left => EdcsMouseButton::MouseButtonLeft,
                             glutin::event::MouseButton::Right => EdcsMouseButton::MouseButtonRight,
@@ -129,6 +130,26 @@ impl UIElement for ControlBarUI {
                             true
                         } else {
                             false
+                        },
+                    });
+            }
+            WindowEvent::KeyboardInput {
+                device_id,
+                input,
+                is_synthetic,
+            } => {
+                self.client
+                    .borrow()
+                    .push
+                    .try_send(ChannelEdcsRequest::WriteKeyboardEvent {
+                        key_data: EdcsKeyData {
+                            btn_typ: keyboard_event::virtual_key_code_to_linux_input(
+                                // Do we really want to crash the entire application because of this?
+                                input
+                                    .virtual_keycode
+                                    .expect("Failed to get the input's virtual keycode"),
+                            ),
+                            pressed: input.state == ElementState::Pressed,
                         },
                     });
             }

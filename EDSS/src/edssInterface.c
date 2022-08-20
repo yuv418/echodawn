@@ -426,3 +426,7 @@ EDSS_STATUS edssUpdateStreaming(edssConfig_t *cfg) { return EDSS_OK; }
 EDSS_STATUS edssWriteMouseEvent(edssMouseEvent_t *ev) {
     return calPlugin->calWriteMouseEvent(ev);
 }
+
+EDSS_STATUS edssWriteKeyboardEvent(edssKeyboardEvent_t *ev) {
+    return calPlugin->calWriteKeyboardEvent(ev);
+}

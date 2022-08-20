@@ -3,7 +3,7 @@ use rand::RngCore;
 
 use super::edss_unsafe;
 use crate::edcs_server::edcs_proto::{
-    edcs_mouse_event, EdcsMouseButton, EdcsMouseButtonData, EdcsMouseEvent,
+    edcs_mouse_event, EdcsKeyData, EdcsKeyboardEvent, EdcsMouseButton, EdcsMouseEvent,
 };
 use rand::rngs::OsRng;
 use std::collections::HashMap;
@@ -193,11 +193,11 @@ impl EdssAdapter {
     }
     pub fn write_mouse_event(&mut self, ev: EdcsMouseEvent) -> Result<(), EdssError> {
         let mut edss_event = match ev.payload {
-            Some(edcs_mouse_event::Payload::Button(EdcsMouseButtonData { btn_typ, pressed })) => {
+            Some(edcs_mouse_event::Payload::Button(EdcsKeyData { btn_typ, pressed })) => {
                 edss_unsafe::edssMouseEvent_t {
                     type_: edss_unsafe::edssMouseEventType_t_CLICK,
                     payload: edss_unsafe::edssMouseEvent_t__bindgen_ty_1 {
-                        button: edss_unsafe::edssMouseEvent_t__bindgen_ty_1_button {
+                        button: edss_unsafe::edssKeyData_t {
                             pressed,
                             button: match EdcsMouseButton::from_i32(btn_typ) {
                                 Some(EdcsMouseButton::MouseButtonLeft) => {
@@ -234,6 +234,21 @@ impl EdssAdapter {
         }
         Ok(())
     }
+
+    pub fn write_keyboard_event(&mut self, kev: EdcsKeyboardEvent) -> Result<(), EdssError> {
+        let key_dat = kev.key_dat.unwrap();
+        let mut kev_c = edss_unsafe::edssKeyboardEvent_t {
+            keyData: edss_unsafe::edssKeyData_t {
+                button: key_dat.btn_typ,
+                pressed: key_dat.pressed,
+            },
+        };
+        unsafe {
+            edss_unsafe::edssWriteKeyboardEvent(&mut kev_c as *mut _);
+        }
+        Ok(())
+    }
+
     pub fn update_streaming(&self) -> Result<(), EdssError> {
         unsafe {
             edss_unsafe::edssUpdateStreaming(&mut self.to_c_struct() as *mut _);

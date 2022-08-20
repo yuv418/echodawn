@@ -611,6 +611,7 @@ dependencies = [
  "futures",
  "glow",
  "glutin",
+ "input-linux-sys",
  "lazy_static",
  "libmpv-sys",
  "log",
@@ -1139,6 +1140,16 @@ checksum = "10a35a97730320ffe8e2d410b5d3b69279b98d2c14bdb8b70ea89ecf7888d41e"
 dependencies = [
  "autocfg",
  "hashbrown",
+]
+
+[[package]]
+name = "input-linux-sys"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c5b38ff83082bf450ea041029953bfdd5bcfb15908454938c95afea125c19a6"
+dependencies = [
+ "libc",
+ "nix",
 ]
 
 [[package]]

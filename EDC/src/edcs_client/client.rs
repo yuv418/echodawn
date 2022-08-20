@@ -17,8 +17,8 @@ use std::sync::Arc;
 use crate::edcs_client::{
     config::ClientConfig,
     edcs_proto::{
-        edcs_message, edcs_mouse_event, EdcsCalParams, EdcsMessage, EdcsMessageType,
-        EdcsMouseButton, EdcsMouseButtonData, EdcsMouseEvent, EdcsMouseMove, EdcsResponse,
+        edcs_message, edcs_mouse_event, EdcsCalParams, EdcsKeyData, EdcsKeyboardEvent, EdcsMessage,
+        EdcsMessageType, EdcsMouseButton, EdcsMouseEvent, EdcsMouseMove, EdcsResponse,
         EdcsStreamParams,
     },
 };
@@ -210,10 +210,26 @@ impl EdcsClient {
             .send_message(EdcsMessage {
                 message_type: EdcsMessageType::WriteMouseEvent as i32,
                 payload: Some(edcs_message::Payload::MouseEvent(EdcsMouseEvent {
-                    payload: Some(edcs_mouse_event::Payload::Button(EdcsMouseButtonData {
+                    payload: Some(edcs_mouse_event::Payload::Button(EdcsKeyData {
                         btn_typ: btn_typ as i32,
                         pressed,
                     })),
+                })),
+            })
+            .await;
+        trace!("finished writing mouse button {:?}", ret);
+        ret
+    }
+    // Using the struct wholesale here seems a bit inconsistent with the other functions
+    pub async fn write_keyboard_event(
+        &mut self,
+        key_dat: EdcsKeyData,
+    ) -> anyhow::Result<EdcsResponse> {
+        let ret = self
+            .send_message(EdcsMessage {
+                message_type: EdcsMessageType::WriteKeyboardEvent as i32,
+                payload: Some(edcs_message::Payload::KeyboardEvent(EdcsKeyboardEvent {
+                    key_dat: Some(key_dat),
                 })),
             })
             .await;

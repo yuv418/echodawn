@@ -3,7 +3,7 @@
 use crate::edcs_client::{
     self,
     client::EdcsClient,
-    edcs_proto::{EdcsMouseButton, EdcsResponse},
+    edcs_proto::{EdcsKeyData, EdcsMouseButton, EdcsResponse},
 };
 use anyhow::anyhow;
 use async_mutex::Mutex;
@@ -32,6 +32,9 @@ pub enum ChannelEdcsRequest {
         button_typ: EdcsMouseButton,
         pressed: bool,
     },
+    WriteKeyboardEvent {
+        key_data: EdcsKeyData,
+    },
 }
 #[derive(Debug)]
 pub enum ChannelEdcsResponse {
@@ -49,7 +52,7 @@ pub struct BlockingEdcsClient {
 impl BlockingEdcsClient {
     pub fn new() -> Self {
         // There may be a lot of messages in the ring
-        let (ui_send, client_recv) = flume::bounded(2); // channel(32);
+        let (ui_send, client_recv) = flume::bounded(1); // channel(32);
         let (client_send, ui_recv) = flume::unbounded(); // channel(32);
 
         // No client until it's requested
@@ -67,7 +70,12 @@ impl BlockingEdcsClient {
                 let edcs_client: Arc<Mutex<Option<EdcsClient>>> = Arc::new(Mutex::new(None));
                 while let Ok(req) = client_recv.recv_async().await {
                     debug!("recv erquest");
-                    Self::handle_req(req, edcs_client.clone(), client_send.clone()).await;
+                    tokio::spawn(Self::handle_req(
+                        req,
+                        edcs_client.clone(),
+                        client_send.clone(),
+                    ))
+                    .await;
                 }
             })
         });
@@ -89,7 +97,8 @@ impl BlockingEdcsClient {
             | ChannelEdcsRequest::StartStream
             | ChannelEdcsRequest::CloseStream
             | ChannelEdcsRequest::WriteMouseButton { .. }
-            | ChannelEdcsRequest::WriteMouseMove { .. } => {
+            | ChannelEdcsRequest::WriteMouseMove { .. }
+            | ChannelEdcsRequest::WriteKeyboardEvent { .. } => {
                 let ret = if let Some(edcs_client) = &mut *edcs_client_opt {
                     match req {
                         ChannelEdcsRequest::SetupEdcs { bitrate, framerate } => {
@@ -125,6 +134,11 @@ impl BlockingEdcsClient {
                             debug!("write mouse button finished");
                             ret
                         }),
+                        ChannelEdcsRequest::WriteKeyboardEvent { key_data } => {
+                            ChannelEdcsResponse::EdcsResponse({
+                                edcs_client.write_keyboard_event(key_data).await
+                            })
+                        }
                     }
                 } else {
                     ChannelEdcsResponse::InvalidClient

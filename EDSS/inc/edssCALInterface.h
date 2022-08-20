@@ -72,6 +72,11 @@ typedef struct {
     EDSS_STATUS (*calWriteMouseEvent)(edssMouseEvent_t *ev);
 
     /**
+     * Write a keyboard event to CAL.
+     */
+    EDSS_STATUS (*calWriteKeyboardEvent)(edssKeyboardEvent_t *ev);
+
+    /**
      * Free memory that was allocated in `calInit`. For example, close files or
      * free any handles that are being used.
      */

@@ -78,6 +78,10 @@ EDSS_STATUS calInit(StrMap *calOptionDict, calConfig_t *calCfg) {
     ioctl(rtCfg.inputFd, UI_SET_KEYBIT, BTN_LEFT);
     ioctl(rtCfg.inputFd, UI_SET_KEYBIT, BTN_RIGHT);
     ioctl(rtCfg.inputFd, UI_SET_KEYBIT, BTN_MIDDLE);
+    // Enable every key on a keyboard
+    for (int keyCode = 11; keyCode < 0x1a5; ++keyCode) {
+        ioctl(rtCfg.inputFd, UI_SET_KEYBIT, keyCode);
+    }
 
     ioctl(rtCfg.inputFd, UI_SET_EVBIT, EV_ABS);
     ioctl(rtCfg.inputFd, UI_SET_ABSBIT, ABS_X);
@@ -155,10 +159,19 @@ EDSS_STATUS calWriteMouseEvent(edssMouseEvent_t *ev) {
     return EDSS_OK;
 }
 
+EDSS_STATUS calWriteKeyboardEvent(edssKeyboardEvent_t *ev) {
+    EDSS_LOGD("vGPU CAL plugin writing keyboard event\n");
+    send_ev(EV_KEY, ev->keyData.button, ev->keyData.pressed);
+    send_ev(EV_SYN, SYN_REPORT, 0);
+
+    return EDSS_OK;
+}
+
 calPlugin_t calPlugin = {
     .calOptions = calOptions,
     .calInit = calInit,
     .calReadFrame = calReadFrame,
     .calShutdown = calShutdown,
     .calWriteMouseEvent = calWriteMouseEvent,
+    .calWriteKeyboardEvent = calWriteKeyboardEvent,
 };
