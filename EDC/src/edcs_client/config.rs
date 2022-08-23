@@ -9,4 +9,5 @@ pub struct ClientConfig {
     pub port: u16,
     pub cert: PathBuf,
     pub disable_tls_verification: bool,
+    pub hostcursor: bool,
 }

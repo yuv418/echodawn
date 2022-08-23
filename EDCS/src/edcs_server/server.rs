@@ -83,9 +83,13 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
 
         let handler_copy = Arc::clone(&handler);
         let cfg_copy = Arc::clone(&edcs_config);
+
         let handle_future = async move {
+            let handler_copy2 = Arc::clone(&handler_copy);
+            let cfg_copy2 = Arc::clone(&cfg_copy);
             let stream = acceptor.accept(stream).await?;
             let (mut reader, mut writer) = split(stream);
+            let writer = Arc::new(Mutex::new(writer));
             // Handle things with stream.read_buf/write_buf
 
             // Get the length delimiter
@@ -102,19 +106,24 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                 );
                 let mut message_buffer = vec![0; pb_len];
                 while let Ok(_) = reader.read_exact(&mut message_buffer).await {
+                    let handler_copy4 = Arc::clone(&handler_copy);
+                    let cfg_copy4 = Arc::clone(&cfg_copy);
+                    let mut writer_copy4 = Arc::clone(&writer);
                     trace!("Protobuf data {:?}", message_buffer);
                     let edcs_message = EdcsMessage::decode(&message_buffer[..])?;
                     debug!("EDCS Message {:#?}", edcs_message);
 
-                    {
+                    tokio::spawn(async move {
                         // So that the locked mutex gets unlocked when it goes out of scope
-                        let mut handler_unlock = handler_copy.lock().await;
+                        let mut writer_unlck = writer_copy4.lock().await;
+                        let mut handler_unlock = handler_copy4.lock().await;
                         let edcs_response = handler_unlock
-                            .handle_message(Arc::clone(&cfg_copy), edcs_message)
-                            .with_context(|| "Failed to get EDCS response")?;
+                            .handle_message(Arc::clone(&cfg_copy4), edcs_message)
+                            .with_context(|| "Failed to get EDCS response")
+                            .expect("Failed to get EDCS resp");
 
                         // Write the response data after flushing the writer
-                        writer.flush().await?;
+                        writer_unlck.flush().await.expect("Failed to flush writer");
                         // For performance reasons, not all requests return a response since it would be
                         // unnecessary to respond to a mouse move event.
                         if let Some(edcs_response) = edcs_response {
@@ -125,7 +134,8 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                             encode_length_delimiter(
                                 edcs_response.encoded_len(),
                                 &mut send_delimiter_buf,
-                            )?;
+                            )
+                            .expect("Failed to encode len delim for PB");
                             // Pad the buffer.
                             while send_delimiter_buf.len() < 10 {
                                 send_delimiter_buf.push(0);
@@ -136,13 +146,19 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                                 "Need {} bytes for delim buffer",
                                 length_delimiter_len(encoded_len)
                             );
-                            writer.write_all(&mut send_delimiter_buf).await?;
+                            writer_unlck
+                                .write_all(&mut send_delimiter_buf)
+                                .await
+                                .expect("Failed to write PB delim buffer");
 
                             let mut response_buffer = edcs_response.encode_to_vec();
                             trace!("Response buffer is {:?}", response_buffer);
-                            writer.write_all(&mut response_buffer).await?;
+                            writer_unlck
+                                .write_all(&mut response_buffer)
+                                .await
+                                .expect("Failed to write PB response");
                         }
-                    }
+                    });
                     break;
                 }
             }
