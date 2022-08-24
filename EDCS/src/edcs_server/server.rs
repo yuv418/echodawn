@@ -7,6 +7,7 @@ use log::debug;
 use log::error;
 use log::info;
 use log::trace;
+use parking_lot::Mutex;
 use prost::decode_length_delimiter;
 use prost::encode_length_delimiter;
 use prost::length_delimiter_len;
@@ -20,7 +21,6 @@ use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio::io::{split, AsyncWriteExt};
 use tokio::net::TcpListener;
-use tokio::sync::Mutex;
 use tokio_rustls::rustls::{self, Certificate, PrivateKey};
 use tokio_rustls::TlsAcceptor;
 // Somewhat inspired by https://github.com/tokio-rs/tls/blob/master/tokio-rustls/examples/server/src/main.rs
@@ -85,11 +85,8 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
         let cfg_copy = Arc::clone(&edcs_config);
 
         let handle_future = async move {
-            let handler_copy2 = Arc::clone(&handler_copy);
-            let cfg_copy2 = Arc::clone(&cfg_copy);
             let stream = acceptor.accept(stream).await?;
             let (mut reader, mut writer) = split(stream);
-            let writer = Arc::new(Mutex::new(writer));
             // Handle things with stream.read_buf/write_buf
 
             // Get the length delimiter
@@ -106,59 +103,55 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                 );
                 let mut message_buffer = vec![0; pb_len];
                 while let Ok(_) = reader.read_exact(&mut message_buffer).await {
-                    let handler_copy4 = Arc::clone(&handler_copy);
-                    let cfg_copy4 = Arc::clone(&cfg_copy);
-                    let mut writer_copy4 = Arc::clone(&writer);
                     trace!("Protobuf data {:?}", message_buffer);
                     let edcs_message = EdcsMessage::decode(&message_buffer[..])?;
                     debug!("EDCS Message {:#?}", edcs_message);
 
-                    tokio::spawn(async move {
-                        // So that the locked mutex gets unlocked when it goes out of scope
-                        let mut writer_unlck = writer_copy4.lock().await;
-                        let mut handler_unlock = handler_copy4.lock().await;
-                        let edcs_response = handler_unlock
-                            .handle_message(Arc::clone(&cfg_copy4), edcs_message)
+                    // So that the locked mutex gets unlocked when it goes out of scope
+                    let edcs_response = {
+                        let mut handler_unlock = handler_copy.lock();
+                        handler_unlock
+                            .handle_message(Arc::clone(&cfg_copy), edcs_message)
                             .with_context(|| "Failed to get EDCS response")
-                            .expect("Failed to get EDCS resp");
+                            .expect("Failed to get EDCS resp")
+                    };
 
+                    // For performance reasons, not all requests return a response since it would be
+                    // unnecessary to respond to a mouse move event.
+                    if let Some(edcs_response) = edcs_response {
                         // Write the response data after flushing the writer
-                        writer_unlck.flush().await.expect("Failed to flush writer");
-                        // For performance reasons, not all requests return a response since it would be
-                        // unnecessary to respond to a mouse move event.
-                        if let Some(edcs_response) = edcs_response {
-                            // TODO is this the most efficient way to do this?
-                            // The first ten bytes are the length delimiter, then the next bit is the actual protobuf
-                            let encoded_len = edcs_response.encoded_len();
-                            let mut send_delimiter_buf: Vec<u8> = vec![];
-                            encode_length_delimiter(
-                                edcs_response.encoded_len(),
-                                &mut send_delimiter_buf,
-                            )
-                            .expect("Failed to encode len delim for PB");
-                            // Pad the buffer.
-                            while send_delimiter_buf.len() < 10 {
-                                send_delimiter_buf.push(0);
-                            }
-                            trace!("Delimiter buffer is {:?}", send_delimiter_buf);
-                            trace!("Response length should be {}", edcs_response.encoded_len());
-                            trace!(
-                                "Need {} bytes for delim buffer",
-                                length_delimiter_len(encoded_len)
-                            );
-                            writer_unlck
-                                .write_all(&mut send_delimiter_buf)
-                                .await
-                                .expect("Failed to write PB delim buffer");
-
-                            let mut response_buffer = edcs_response.encode_to_vec();
-                            trace!("Response buffer is {:?}", response_buffer);
-                            writer_unlck
-                                .write_all(&mut response_buffer)
-                                .await
-                                .expect("Failed to write PB response");
+                        writer.flush().await.expect("Failed to flush writer");
+                        // TODO is this the most efficient way to do this?
+                        // The first ten bytes are the length delimiter, then the next bit is the actual protobuf
+                        let encoded_len = edcs_response.encoded_len();
+                        let mut send_delimiter_buf: Vec<u8> = vec![];
+                        encode_length_delimiter(
+                            edcs_response.encoded_len(),
+                            &mut send_delimiter_buf,
+                        )
+                        .expect("Failed to encode len delim for PB");
+                        // Pad the buffer.
+                        while send_delimiter_buf.len() < 10 {
+                            send_delimiter_buf.push(0);
                         }
-                    });
+                        trace!("Delimiter buffer is {:?}", send_delimiter_buf);
+                        trace!("Response length should be {}", edcs_response.encoded_len());
+                        trace!(
+                            "Need {} bytes for delim buffer",
+                            length_delimiter_len(encoded_len)
+                        );
+                        writer
+                            .write_all(&mut send_delimiter_buf)
+                            .await
+                            .expect("Failed to write PB delim buffer");
+
+                        let mut response_buffer = edcs_response.encode_to_vec();
+                        trace!("Response buffer is {:?}", response_buffer);
+                        writer
+                            .write_all(&mut response_buffer)
+                            .await
+                            .expect("Failed to write PB response");
+                    }
                     break;
                 }
             }

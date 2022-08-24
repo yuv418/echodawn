@@ -24,6 +24,7 @@ rand = "0.8"
 base64 = "0.13"
 # This library might not be too great
 input-event-codes = "5.16.8"
+parking_lot = "0.1"
 
 [build-dependencies]
 bindgen = "0.60"

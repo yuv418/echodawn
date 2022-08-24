@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use egui::RichText;
 use glutin::{
     dpi::PhysicalPosition,
-    event::{ElementState, WindowEvent},
+    event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::EventLoop,
     window::Window,
 };
@@ -139,18 +139,40 @@ impl UIElement for ControlBarUI {
                 is_synthetic,
             } => {
                 debug!("keyinput {:?}", input);
-                self.client
-                    .borrow()
-                    .push
-                    .send(ChannelEdcsRequest::WriteKeyboardEvent {
-                        key_typ: keyboard_event::virtual_key_code_to_linux_input(
-                            // Do we really want to crash the entire application because of this?
-                            input
-                                .virtual_keycode
-                                .expect("Failed to get the input's virtual keycode"),
-                        ),
-                        pressed: input.state == ElementState::Pressed,
-                    });
+                match input.virtual_keycode {
+                    Some(vkeycd) => {
+                        self.client
+                            .borrow()
+                            .push
+                            .send(ChannelEdcsRequest::WriteKeyboardEvent {
+                                key_typ: keyboard_event::virtual_key_code_to_linux_input(
+                                    // Do we really want to crash the entire application because of this?
+                                    vkeycd,
+                                ),
+                                pressed: input.state == ElementState::Pressed,
+                            });
+                    }
+                    None => {}
+                }
+            }
+            WindowEvent::ModifiersChanged(mod_state) => {
+                let send_event = |pressed: bool, vkeycd: VirtualKeyCode| {
+                    self.client
+                        .borrow()
+                        .push
+                        .send(ChannelEdcsRequest::WriteKeyboardEvent {
+                            key_typ: keyboard_event::virtual_key_code_to_linux_input(
+                                // Do we really want to crash the entire application because of this?
+                                vkeycd,
+                            ),
+                            pressed,
+                        });
+                };
+                if mod_state.logo() {
+                    send_event(true, VirtualKeyCode::LWin);
+                } else {
+                    send_event(false, VirtualKeyCode::LWin);
+                }
             }
             _ => {}
         }
