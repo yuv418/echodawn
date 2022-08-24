@@ -218,4 +218,13 @@ impl EdcsHandler {
             payload: response_payload,
         }))
     }
+
+    // Figure out if the EDSS stream was shutdown for better cleanup
+    pub fn adapter_streaming(&self) -> bool {
+        if let Some(adapter) = &self.adapter {
+            adapter.streaming()
+        } else {
+            false
+        }
+    }
 }

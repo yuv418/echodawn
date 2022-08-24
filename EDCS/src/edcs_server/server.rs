@@ -1,5 +1,5 @@
 use super::config::EdcsConfig;
-use super::edcs_proto::EdcsMessage;
+use super::edcs_proto::{EdcsMessage, EdcsMessageType, EdcsResponse};
 use super::handler::EdcsHandler;
 use anyhow::anyhow;
 use anyhow::Context;
@@ -12,17 +12,21 @@ use prost::decode_length_delimiter;
 use prost::encode_length_delimiter;
 use prost::length_delimiter_len;
 use prost::Message;
+use rand::rngs::adapter;
 use rustls_pemfile::{certs, pkcs8_private_keys};
+use std::borrow::BorrowMut;
 use std::fs;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::io::AsyncReadExt;
+use tokio::io::WriteHalf;
 use tokio::io::{split, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio::net::TcpStream;
 use tokio_rustls::rustls::{self, Certificate, PrivateKey};
-use tokio_rustls::TlsAcceptor;
+use tokio_rustls::{server::TlsStream, TlsAcceptor};
 // Somewhat inspired by https://github.com/tokio-rs/tls/blob/master/tokio-rustls/examples/server/src/main.rs
 
 // get_certs and get_keys are directly copied from the tokio-rs codebase since they are just boilerplate.
@@ -119,43 +123,30 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                     // For performance reasons, not all requests return a response since it would be
                     // unnecessary to respond to a mouse move event.
                     if let Some(edcs_response) = edcs_response {
-                        // Write the response data after flushing the writer
-                        writer.flush().await.expect("Failed to flush writer");
-                        // TODO is this the most efficient way to do this?
-                        // The first ten bytes are the length delimiter, then the next bit is the actual protobuf
-                        let encoded_len = edcs_response.encoded_len();
-                        let mut send_delimiter_buf: Vec<u8> = vec![];
-                        encode_length_delimiter(
-                            edcs_response.encoded_len(),
-                            &mut send_delimiter_buf,
-                        )
-                        .expect("Failed to encode len delim for PB");
-                        // Pad the buffer.
-                        while send_delimiter_buf.len() < 10 {
-                            send_delimiter_buf.push(0);
+                        if let Err(e) = write_pb(&mut writer, edcs_response).await {
+                            error!("Failed to send response to client {:?}", e);
                         }
-                        trace!("Delimiter buffer is {:?}", send_delimiter_buf);
-                        trace!("Response length should be {}", edcs_response.encoded_len());
-                        trace!(
-                            "Need {} bytes for delim buffer",
-                            length_delimiter_len(encoded_len)
-                        );
-                        writer
-                            .write_all(&mut send_delimiter_buf)
-                            .await
-                            .expect("Failed to write PB delim buffer");
-
-                        let mut response_buffer = edcs_response.encode_to_vec();
-                        trace!("Response buffer is {:?}", response_buffer);
-                        writer
-                            .write_all(&mut response_buffer)
-                            .await
-                            .expect("Failed to write PB response");
                     }
                     break;
                 }
             }
 
+            {
+                // Shut down any remaining streams not shut down by the client
+                let mut handler_unlock = handler_copy.lock();
+                if handler_unlock.adapter_streaming() {
+                    info!("The client failed to shut down the EDSS stream, doing it after client disconnect");
+                    // This will be ignored if another CloseStream was already handled, and the previous line may
+                    // or may not be inaccurate
+                    handler_unlock.handle_message(
+                        cfg_copy,
+                        EdcsMessage {
+                            message_type: EdcsMessageType::CloseStream as i32,
+                            payload: None,
+                        },
+                    );
+                }
+            }
             debug!("Finished RPC handler.");
             Ok(()) as anyhow::Result<()>
         };
@@ -165,4 +156,34 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
             }
         });
     }
+}
+
+async fn write_pb(
+    writer: &mut WriteHalf<TlsStream<TcpStream>>,
+    edcs_response: EdcsResponse,
+) -> anyhow::Result<()> {
+    // Write the response data after flushing the writer
+    writer.flush().await?;
+    // TODO is this the most efficient way to do this?
+    // The first ten bytes are the length delimiter, then the next bit is the actual protobuf
+    let encoded_len = edcs_response.encoded_len();
+    let mut send_delimiter_buf: Vec<u8> = vec![];
+    encode_length_delimiter(edcs_response.encoded_len(), &mut send_delimiter_buf)?;
+    // Pad the buffer.
+    while send_delimiter_buf.len() < 10 {
+        send_delimiter_buf.push(0);
+    }
+    trace!("Delimiter buffer is {:?}", send_delimiter_buf);
+    trace!("Response length should be {}", edcs_response.encoded_len());
+    trace!(
+        "Need {} bytes for delim buffer",
+        length_delimiter_len(encoded_len)
+    );
+    writer.write_all(&mut send_delimiter_buf).await?;
+
+    let mut response_buffer = edcs_response.encode_to_vec();
+    trace!("Response buffer is {:?}", response_buffer);
+    writer.write_all(&mut response_buffer).await?;
+
+    Ok(())
 }

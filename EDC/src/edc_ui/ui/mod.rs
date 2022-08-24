@@ -86,7 +86,16 @@ impl UICtx {
         event: WindowEvent,
     ) {
         match event {
-            WindowEvent::CloseRequested => *ctrl_flow = ControlFlow::Exit,
+            WindowEvent::CloseRequested => {
+                // TODO this is a bad solution. We are unable to get the response becaues it's only broadcasted to the current UI element
+                self.blocking_client
+                    .borrow_mut()
+                    .push
+                    .send(blocking_client::ChannelEdcsRequest::CloseStream)
+                    .expect("failed to send close stream request");
+
+                *ctrl_flow = ControlFlow::Exit
+            }
             _ => {}
         }
 

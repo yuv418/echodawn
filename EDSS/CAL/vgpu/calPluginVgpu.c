@@ -116,7 +116,13 @@ EDSS_STATUS calReadFrame() {
 EDSS_STATUS calShutdown() {
     int ret;
 
+    ioctl(rtCfg.inputFd, UI_DEV_DESTROY);
+
     ret = close(rtCfg.vgpuFd);
+    if (ret < 0) {
+        return EDSS_CAL_LIBRARY_FAILURE;
+    }
+    ret = close(rtCfg.inputFd);
     if (ret < 0) {
         return EDSS_CAL_LIBRARY_FAILURE;
     }
