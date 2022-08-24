@@ -120,7 +120,7 @@ impl EdcsClient {
         }
         self.writer.write_all(&mut delimiter_buf).await?;
 
-        debug!(
+        trace!(
             "Writing length delimiter {:?}, encoded_len is {}",
             delimiter_buf,
             msg.encoded_len()
@@ -128,8 +128,8 @@ impl EdcsClient {
 
         // We write the delimiter separately, so we don't need to encode with delimiter.
         let mut msg_buf = msg.encode_to_vec();
-        trace!("Writing data {:?} to PB", msg_buf);
         self.writer.write_all(&mut msg_buf).await?;
+        trace!("Wrote data {:?} to PB", msg_buf);
 
         if !ignore_response {
             let mut resp_len = 0;
@@ -211,7 +211,7 @@ impl EdcsClient {
         .await
     }
     pub async fn write_mouse_move(&mut self, x: f64, y: f64) -> anyhow::Result<EdcsResponse> {
-        debug!("Writing mouse move!");
+        trace!("Writing mouse move!");
         let ret = self
             .send_message(
                 EdcsMessage {

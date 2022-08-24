@@ -9,7 +9,7 @@ use anyhow::anyhow;
 use async_mutex::Mutex;
 use flume::{Receiver, Sender};
 use futures::TryFutureExt;
-use log::{debug, trace};
+use log::{debug, error, trace};
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 use thread_priority::{RealtimeThreadSchedulePolicy, ThreadPriority, ThreadSchedulePolicy};
 use tokio::runtime::Builder;
@@ -89,7 +89,7 @@ impl BlockingEdcsClient {
         edcs_client_lck: Arc<Mutex<Option<EdcsClient>>>,
         client_push: Sender<ChannelEdcsResponse>,
     ) {
-        debug!("client req: {:?}", req);
+        trace!("client req: {:?}", req);
         let mut edcs_client_opt = edcs_client_lck.lock().await;
         let resp = match req {
             // TODO DRY
@@ -103,9 +103,10 @@ impl BlockingEdcsClient {
                 let ret = if let Some(edcs_client) = &mut *edcs_client_opt {
                     match req {
                         ChannelEdcsRequest::SetupEdcs { bitrate, framerate } => {
-                            ChannelEdcsResponse::EdcsResponse(
-                                edcs_client.setup_edcs(framerate, bitrate).await,
-                            )
+                            ChannelEdcsResponse::EdcsResponse({
+                                let ret = edcs_client.setup_edcs(framerate, bitrate).await;
+                                ret
+                            })
                         }
                         ChannelEdcsRequest::SetupStream(ref options) => {
                             ChannelEdcsResponse::EdcsResponse(
@@ -132,7 +133,7 @@ impl BlockingEdcsClient {
                             pressed,
                         } => ChannelEdcsResponse::EdcsResponse({
                             let ret = edcs_client.write_mouse_button(button_typ, pressed).await;
-                            debug!("write mouse button finished");
+                            trace!("write mouse button finished");
                             ret
                         }),
                         ChannelEdcsRequest::WriteKeyboardEvent { key_typ, pressed } => {
@@ -145,9 +146,15 @@ impl BlockingEdcsClient {
                     ChannelEdcsResponse::InvalidClient
                 };
 
-                if let ChannelEdcsRequest::WriteMouseMove { .. } = &req {
-                } else {
-                    trace!("pushed response {:?} to ui", client_push.send(ret));
+                match &req {
+                    ChannelEdcsRequest::WriteMouseMove { .. }
+                    | ChannelEdcsRequest::WriteMouseButton { .. }
+                    | ChannelEdcsRequest::WriteKeyboardEvent { .. } => {}
+                    _ => {
+                        if let Err(e) = client_push.send(ret) {
+                            error!("failed to push response from EDCS to UI thread {:?}", e);
+                        }
+                    }
                 }
             }
 

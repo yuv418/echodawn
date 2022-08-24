@@ -7,7 +7,7 @@ use glutin::{
     event_loop::EventLoop,
     window::Window,
 };
-use log::{debug, info};
+use log::{debug, info, trace};
 
 use crate::edcs_client::{
     blocking_client::{BlockingEdcsClient, ChannelEdcsRequest},
@@ -100,20 +100,19 @@ impl UIElement for ControlBarUI {
     ) {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
-                debug!("mouse move source {:?}", event);
-                debug!(
-                    "try send to self.client returns {:?}",
-                    self.client
-                        .borrow()
-                        .push
-                        .send(ChannelEdcsRequest::WriteMouseMove {
-                            x: position.x as f64,
-                            y: position.y as f64,
-                        })
-                );
+                trace!("mouse move source {:?}", event);
+                let ret = self
+                    .client
+                    .borrow()
+                    .push
+                    .send(ChannelEdcsRequest::WriteMouseMove {
+                        x: position.x as f64,
+                        y: position.y as f64,
+                    });
+                trace!("try send to self.client returns {:?}", ret);
             }
             WindowEvent::MouseInput { state, button, .. } => {
-                debug!("mouse move source {:?}", event);
+                trace!("mouse move source {:?}", event);
                 self.client
                     .borrow()
                     .push
@@ -138,7 +137,7 @@ impl UIElement for ControlBarUI {
                 input,
                 is_synthetic,
             } => {
-                debug!("keyinput {:?}", input);
+                trace!("keyinput {:?}", input);
                 match input.virtual_keycode {
                     Some(vkeycd) => {
                         self.client
@@ -188,6 +187,7 @@ impl UIElement for ControlBarUI {
     }
 
     fn paint_before_egui(&mut self, window: &Window) {
+        window.set_cursor_visible(false);
         self.mpv_ctx.paint(window)
     }
 
