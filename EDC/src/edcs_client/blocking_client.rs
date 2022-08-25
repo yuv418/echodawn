@@ -1,23 +1,24 @@
 // Based on the example provided here: https://tokio.rs/tokio/topics/bridging#a-synchronous-interface-to-mini-redis
 
-use crate::edcs_client::{
-    self,
-    client::EdcsClient,
-    edcs_proto::{EdcsKeyData, EdcsMouseButton, EdcsResponse},
+use crate::{
+    edcs_client::{
+        client::EdcsClient,
+        edcs_proto::{EdcsMouseButton, EdcsResponse},
+    },
+    edcs_config::ClientConfig,
 };
-use anyhow::anyhow;
+
 use async_mutex::Mutex;
 use flume::{Receiver, Sender};
-use futures::TryFutureExt;
-use log::{debug, error, trace};
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
-use thread_priority::{RealtimeThreadSchedulePolicy, ThreadPriority, ThreadSchedulePolicy};
+
+use log::{error, trace};
+use std::{collections::HashMap, sync::Arc};
 use tokio::runtime::Builder;
 
 // At this point, we may as well get rid of the methods in EdcsClient and just have the GUI send over the structs we want
 #[derive(Debug)]
 pub enum ChannelEdcsRequest {
-    NewClient(PathBuf),
+    NewClient(ClientConfig),
     SetupEdcs {
         bitrate: u32,
         framerate: u32,
@@ -58,7 +59,7 @@ impl BlockingEdcsClient {
         let (client_send, ui_recv) = flume::unbounded(); // channel(32);
 
         // No client until it's requested
-        let mut client = Self {
+        let client = Self {
             push: ui_send,
             recv: ui_recv,
         };
@@ -158,8 +159,8 @@ impl BlockingEdcsClient {
                 }
             }
 
-            ChannelEdcsRequest::NewClient(path) => {
-                let edcs_client_res = EdcsClient::new(&path).await;
+            ChannelEdcsRequest::NewClient(client_config) => {
+                let edcs_client_res = EdcsClient::new(client_config).await;
                 if let Ok(c) = edcs_client_res {
                     client_push
                         .send(ChannelEdcsResponse::EdcsClientInitialised)

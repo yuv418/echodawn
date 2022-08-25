@@ -4,14 +4,13 @@ use egui::RichText;
 use glutin::{
     dpi::PhysicalPosition,
     event::{ElementState, VirtualKeyCode, WindowEvent},
-    event_loop::EventLoop,
     window::Window,
 };
-use log::{debug, info, trace};
+use log::{info, trace};
 
 use crate::edcs_client::{
     blocking_client::{BlockingEdcsClient, ChannelEdcsRequest},
-    edcs_proto::{EdcsKeyData, EdcsMouseButton},
+    edcs_proto::EdcsMouseButton,
     keyboard_event,
 };
 
@@ -62,7 +61,7 @@ impl UIElement for ControlBarUI {
     fn render(
         &mut self,
         ui: &mut egui::Ui,
-        ctrl_flow: &mut glutin::event_loop::ControlFlow,
+        _ctrl_flow: &mut glutin::event_loop::ControlFlow,
     ) -> egui::InnerResponse<()> {
         self.handle_messages();
         egui::Frame::none()
@@ -87,15 +86,15 @@ impl UIElement for ControlBarUI {
         }
     }
 
-    fn next_element(&mut self, window: &Window) -> Option<Box<dyn UIElement>> {
+    fn next_element(&mut self, _window: &Window) -> Option<Box<dyn UIElement>> {
         None
     }
 
     fn handle_window_event(
         &mut self,
-        window: &Window,
-        ctrl_flow: &mut glutin::event_loop::ControlFlow,
-        window_id: glutin::window::WindowId,
+        _window: &Window,
+        _ctrl_flow: &mut glutin::event_loop::ControlFlow,
+        _window_id: glutin::window::WindowId,
         event: &glutin::event::WindowEvent,
     ) {
         match event {
@@ -133,9 +132,9 @@ impl UIElement for ControlBarUI {
                     });
             }
             WindowEvent::KeyboardInput {
-                device_id,
+                device_id: _,
                 input,
-                is_synthetic,
+                is_synthetic: _,
             } => {
                 trace!("keyinput {:?}", input);
                 match input.virtual_keycode {
@@ -186,12 +185,12 @@ impl UIElement for ControlBarUI {
         self.mpv_ctx.handle_user_event(window, ctrl_flow, event)
     }
 
-    fn paint_before_egui(&mut self, window: &Window) {
-        window.set_cursor_visible(false);
+    fn paint_before_egui(&mut self, _gl: Rc<glow::Context>, window: &Window) {
+        // window.set_cursor_visible(false);
         self.mpv_ctx.paint(window)
     }
 
-    fn paint_after_egui(&mut self, _window: &Window) {}
+    fn paint_after_egui(&mut self, _gl: Rc<glow::Context>, _window: &Window) {}
 
     fn needs_evloop_proxy(&mut self) -> bool {
         self.mpv_ctx.needs_evloop_proxy()

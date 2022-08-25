@@ -1,38 +1,35 @@
 use anyhow::{anyhow, Context};
-use log::{debug, trace};
-use prost::{decode_length_delimiter, encode_length_delimiter, length_delimiter_len, Message};
+use log::trace;
+use prost::{decode_length_delimiter, encode_length_delimiter, Message};
 use tokio::io::{split, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::rustls::{self, OwnedTrustAnchor};
 use tokio_rustls::TlsConnector;
-use tokio_util::compat::{Compat, TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
 use std::collections::HashMap;
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::BufReader;
-use std::path::Path;
+
 use std::sync::Arc;
 
-use crate::edcs_client::{
-    config::ClientConfig,
-    edcs_proto::{
-        edcs_message, edcs_mouse_event, EdcsCalParams, EdcsKeyData, EdcsKeyboardEvent, EdcsMessage,
-        EdcsMessageType, EdcsMouseButton, EdcsMouseEvent, EdcsMouseMove, EdcsResponse, EdcsStatus,
-        EdcsStreamParams,
-    },
+use crate::edcs_client::edcs_proto::{
+    edcs_message, edcs_mouse_event, EdcsCalParams, EdcsKeyData, EdcsKeyboardEvent, EdcsMessage,
+    EdcsMessageType, EdcsMouseButton, EdcsMouseEvent, EdcsMouseMove, EdcsResponse, EdcsStatus,
+    EdcsStreamParams,
 };
+use crate::edcs_config::ClientConfig;
 
 struct NoCertVerify {}
 impl rustls::client::ServerCertVerifier for NoCertVerify {
     fn verify_server_cert(
         &self,
-        end_entity: &rustls::Certificate,
-        intermediates: &[rustls::Certificate],
-        server_name: &rustls::ServerName,
-        scts: &mut dyn Iterator<Item = &[u8]>,
-        ocsp_response: &[u8],
-        now: std::time::SystemTime,
+        _end_entity: &rustls::Certificate,
+        _intermediates: &[rustls::Certificate],
+        _server_name: &rustls::ServerName,
+        _scts: &mut dyn Iterator<Item = &[u8]>,
+        _ocsp_response: &[u8],
+        _now: std::time::SystemTime,
     ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
         Ok(rustls::client::ServerCertVerified::assertion())
     }
@@ -47,13 +44,7 @@ pub struct EdcsClient {
 unsafe impl Send for EdcsClient {}
 
 impl EdcsClient {
-    pub async fn new(config_file_path: &Path) -> anyhow::Result<Self> {
-        let client_options: ClientConfig = toml::from_str(
-            &fs::read_to_string(config_file_path)
-                .with_context(|| "Failed to unwrap the config file name")?,
-        )
-        .with_context(|| "Failed to parse client options")?;
-
+    pub async fn new(client_options: ClientConfig) -> anyhow::Result<Self> {
         let mut root_cert_store = rustls::RootCertStore::empty();
         let mut pem = BufReader::new(
             File::open(client_options.cert).with_context(|| "Failed to CA cert file")?,

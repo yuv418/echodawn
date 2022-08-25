@@ -1,6 +1,6 @@
 use glutin::{
     event::WindowEvent,
-    event_loop::{ControlFlow, EventLoop, EventLoopProxy},
+    event_loop::{ControlFlow, EventLoopProxy},
     window::{Window, WindowId},
     ContextWrapper, PossiblyCurrent,
 };
@@ -136,7 +136,7 @@ impl MPVCtx {
         })
     }
 
-    pub fn paint(&self, window: &Window) {
+    pub fn paint(&self, _window: &Window) {
         let mut mpv_render_params = unsafe {
             vec![
                 mpv_render_param {
@@ -168,7 +168,7 @@ impl MPVCtx {
             mpv_render_context_render(self.mpv_gl, mpv_render_params.as_mut_ptr());
         }
     }
-    pub fn handle_window_event(&self, window_id: WindowId, event: WindowEvent) {
+    pub fn handle_window_event(&self, _window_id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => unsafe {
                 mpv_render_context_free(self.mpv_gl);
@@ -178,7 +178,7 @@ impl MPVCtx {
         }
     }
 
-    pub fn handle_user_event(&self, window: &Window, ctrl_flow: &ControlFlow, event: &MPVEvent) {
+    pub fn handle_user_event(&self, window: &Window, _ctrl_flow: &ControlFlow, event: &MPVEvent) {
         match event {
             MPVEvent::MPVRenderUpdate => {
                 let flags = unsafe { mpv_render_context_update(self.mpv_gl) };

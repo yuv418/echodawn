@@ -1,15 +1,13 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
 use egui::InnerResponse;
 use glutin::{
     event::WindowEvent,
-    event_loop::{ControlFlow, EventLoop, EventLoopProxy},
+    event_loop::{ControlFlow, EventLoopProxy},
     window::{Window, WindowId},
 };
 
-use crate::edcs_client::blocking_client::BlockingEdcsClient;
-
-use super::{debug_area::DebugArea, mpv::MPVEvent};
+use super::mpv::MPVEvent;
 
 pub trait UIElement {
     fn render(&mut self, ui: &mut egui::Ui, ctrl_flow: &mut ControlFlow) -> InnerResponse<()>;
@@ -17,8 +15,8 @@ pub trait UIElement {
     fn next_element(&mut self, window: &Window) -> Option<Box<dyn UIElement>>;
     fn needs_evloop_proxy(&mut self) -> bool;
     fn give_evloop_proxy(&mut self, evloop_proxy: Rc<EventLoopProxy<MPVEvent>>);
-    fn paint_before_egui(&mut self, window: &Window);
-    fn paint_after_egui(&mut self, window: &Window);
+    fn paint_before_egui(&mut self, gl: Rc<glow::Context>, window: &Window);
+    fn paint_after_egui(&mut self, gl: Rc<glow::Context>, window: &Window);
     fn handle_window_event(
         &mut self,
         window: &Window,

@@ -9,3 +9,4 @@ main_multithread
 /EDSS/latex
 .ccls-cache
 build/
+.idea/

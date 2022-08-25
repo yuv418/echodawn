@@ -2,13 +2,11 @@ extern crate edc;
 
 use std::io::Write;
 use std::path::PathBuf;
-use std::process::Command;
-use std::time::Duration;
 
 use clap::Parser;
 
 use edc::edc_ui::evloop::EVLoopCtx;
-use edc::edcs_client::edcs_proto::{edcs_response, EdcsMessageType, EdcsResponse};
+
 use log::info;
 
 #[derive(Parser, Debug)]
@@ -19,7 +17,7 @@ struct CLIArgs {
 
 // Mostly copied from https://github.com/tokio-rs/tls/blob/master/tokio-rustls/examples/client/src/main.rs (I mean… it's all boilerplate anyway)
 fn main() -> anyhow::Result<()> {
-    let args = CLIArgs::parse();
+    let _args = CLIArgs::parse();
     // TODO share code between EDCS and EDC for these kinds of things
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Debug)

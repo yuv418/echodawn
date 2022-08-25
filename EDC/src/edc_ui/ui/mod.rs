@@ -1,19 +1,11 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc, RwLock},
-    task::Poll,
-    time::Duration,
-};
+use std::{cell::RefCell, rc::Rc};
 
-use egui::RichText;
 use egui_glow::EguiGlow;
 use glutin::{
     event::WindowEvent,
-    event_loop::{ControlFlow, EventLoop, EventLoopProxy},
+    event_loop::{ControlFlow, EventLoopProxy},
     window::{Window, WindowId},
 };
-use log::debug;
 
 use self::{connect::ConnectUI, mpv::MPVEvent};
 use crate::edcs_client::blocking_client::{self, BlockingEdcsClient};
@@ -60,11 +52,11 @@ impl UICtx {
         })
     }
 
-    pub fn paint_before_egui(&mut self, window: &Window) {
-        self.ui_element.paint_before_egui(window);
+    pub fn paint_before_egui(&mut self, gl: Rc<glow::Context>, window: &Window) {
+        self.ui_element.paint_before_egui(gl, window);
     }
-    pub fn paint_after_egui(&mut self, window: &Window) {
-        self.ui_element.paint_after_egui(window);
+    pub fn paint_after_egui(&mut self, gl: Rc<glow::Context>, window: &Window) {
+        self.ui_element.paint_after_egui(gl, window);
     }
 
     pub fn paint(&mut self, window: &Window) {

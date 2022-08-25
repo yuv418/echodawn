@@ -1,14 +1,11 @@
-use std::{cell::RefCell, collections::VecDeque, rc::Rc, task::Poll};
+use std::collections::VecDeque;
 
 use egui::{InnerResponse, RichText};
 use glutin::{
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
-    window::{Window, WindowId},
 };
-use log::{info, trace};
-
-use crate::edcs_client::blocking_client::BlockingEdcsClient;
+use log::trace;
 
 pub struct DebugArea {
     debug_messages: VecDeque<String>,
@@ -28,7 +25,7 @@ impl DebugArea {
     pub fn render(
         &mut self,
         ctx: &egui::Context,
-        ctrl_flow: &mut ControlFlow,
+        _ctrl_flow: &mut ControlFlow,
     ) -> Option<InnerResponse<()>> {
         if self.disable_modifiers.3 {
             Some(
@@ -73,9 +70,9 @@ impl DebugArea {
         let disable_modifiers_save = self.disable_modifiers.clone();
         match event {
             WindowEvent::KeyboardInput {
-                device_id,
+                device_id: _,
                 input,
-                is_synthetic,
+                is_synthetic: _,
             } => match input.virtual_keycode {
                 Some(VirtualKeyCode::LControl | VirtualKeyCode::RControl)
                     if input.state == ElementState::Pressed =>

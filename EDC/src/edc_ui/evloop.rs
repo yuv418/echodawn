@@ -1,13 +1,7 @@
 use std::rc::Rc;
 
-use egui_glow::EguiGlow;
 use glow::HasContext;
-use glutin::{
-    event::{Event, WindowEvent},
-    event_loop::ControlFlow,
-    window::{self, Window},
-    PossiblyCurrent,
-};
+use glutin::{event::Event, event_loop::ControlFlow, window::Window, PossiblyCurrent};
 
 use crate::edc_ui::ui::{mpv::MPVEvent, UICtx};
 
@@ -58,14 +52,12 @@ impl EVLoopCtx {
                 }
                 Event::MainEventsCleared => self.window.window().request_redraw(),
                 Event::RedrawRequested(_) => {
-                    unsafe {
-                        /*self.gl.clear_color(0.1, 0.1, 0.1, 1.0);
-                        self.gl.clear(glow::COLOR_BUFFER_BIT);*/
-                    }
-                    self.ui_ctx.paint_before_egui(self.window.window());
+                    self.ui_ctx
+                        .paint_before_egui(self.gl.clone(), self.window.window());
                     self.ui_ctx.setup_render(ctrl_flow, self.window.window());
                     self.ui_ctx.paint(self.window.window());
-                    self.ui_ctx.paint_after_egui(self.window.window());
+                    self.ui_ctx
+                        .paint_after_egui(self.gl.clone(), self.window.window());
 
                     if self.ui_ctx.needs_evloop_proxy() {
                         self.ui_ctx.give_evloop_proxy(evloop_proxy.clone())
