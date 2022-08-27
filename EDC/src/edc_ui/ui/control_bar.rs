@@ -38,7 +38,7 @@ impl ControlBarUI {
     where
         Self: Sized,
     {
-        window.set_cursor_visible(false);
+        // window.set_cursor_visible(false);
         let inner_size = window.inner_size();
         Self {
             client,

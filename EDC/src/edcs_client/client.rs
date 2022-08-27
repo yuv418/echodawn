@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context};
 use log::trace;
 use prost::{decode_length_delimiter, encode_length_delimiter, Message};
-use tokio::io::{split, AsyncReadExt, AsyncWriteExt, ReadHalf, WriteHalf};
+use tokio::io::{split, AsyncReadExt, AsyncWriteExt, BufReader, BufWriter, ReadHalf, WriteHalf};
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
 use tokio_rustls::rustls::{self, OwnedTrustAnchor};
@@ -9,7 +9,6 @@ use tokio_rustls::TlsConnector;
 
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::BufReader;
 
 use std::sync::Arc;
 
@@ -37,8 +36,8 @@ impl rustls::client::ServerCertVerifier for NoCertVerify {
 
 #[derive(Debug)]
 pub struct EdcsClient {
-    reader: ReadHalf<TlsStream<TcpStream>>,
-    writer: WriteHalf<TlsStream<TcpStream>>,
+    reader: BufReader<ReadHalf<TlsStream<TcpStream>>>,
+    writer: BufWriter<WriteHalf<TlsStream<TcpStream>>>,
     delimiter_buf: Vec<u8>,
 }
 
@@ -47,7 +46,7 @@ unsafe impl Send for EdcsClient {}
 impl EdcsClient {
     pub async fn new(client_options: ClientConfig) -> anyhow::Result<Self> {
         let mut root_cert_store = rustls::RootCertStore::empty();
-        let mut pem = BufReader::new(
+        let mut pem = std::io::BufReader::new(
             File::open(client_options.cert).with_context(|| "Failed to CA cert file")?,
         );
 
@@ -92,6 +91,10 @@ impl EdcsClient {
             .with_context(|| "Failed to connect to the EDCS server")?;
 
         let (reader, writer) = split(stream);
+
+        let reader = BufReader::new(reader);
+        let writer = BufWriter::new(writer);
+
         Ok(Self {
             reader,
             writer,

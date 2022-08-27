@@ -1,0 +1,24 @@
+* EDSS
+- [ ] Handle edssInterface for multiple streams
+- [ ] Remove all hardcoding
+- [ ] Switch to more precise timer in encoder thread
+- [ ] Fix ocassional segfault issue likely due to a lack of a mutex somewhere
+- [ ] Fix perf issues after switching to ~pthread_create~ for both capture and enc thread
+- [ ] Update stream params -> implement
+- [ ] Rewrite in C++ and get rid of libck
+
+* EDCS
+- [ ] Web-based control interface for acquiring connections
+- [ ] Switch to EDSS handle system when implemented
+- [ ] Fix hardcoded config IP addresses for SRTP
+- [ ] IPC with evdev-proxy
+
+* EDC
+- [ ] Metrics dashboard/configuration panel during connection + disconnect button
+- [ ] Switch to libav* based decoder for greater control and lower latency (see https://gist.github.com/rcolinray/7552384 — OpenGL/libav integration)
+- [ ] Windows/macOS support
+
+* evdev-proxy
+- [ ] IPC with EDCS because file system is very finnicky
+- [ ] Multiple proxies for different VMs
+- [ ] Convert to systemd service

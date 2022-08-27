@@ -90,7 +90,8 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
 
         let handle_future = async move {
             let stream = acceptor.accept(stream).await?;
-            let (mut reader, mut writer) = split(stream);
+            let (reader, mut writer) = split(stream);
+            let mut reader = tokio::io::BufReader::new(reader);
             // Handle things with stream.read_buf/write_buf
 
             // Get the length delimiter
