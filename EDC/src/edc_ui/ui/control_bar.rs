@@ -140,21 +140,21 @@ impl UIElement for ControlBarUI {
                 is_synthetic: _,
             } => {
                 trace!("keyinput {:?}", input);
-                match input.virtual_keycode {
-                    Some(vkeycd) => {
-                        self.client
-                            .borrow()
-                            .push
-                            .send(ChannelEdcsRequest::WriteKeyboardEvent {
-                                key_typ: keyboard_event::virtual_key_code_to_linux_input(
-                                    // Do we really want to crash the entire application because of this?
-                                    vkeycd,
-                                ),
-                                pressed: input.state == ElementState::Pressed,
-                            });
+                let key_typ = if cfg!(linux) {
+                    input.scancode as i32
+                } else {
+                    match input.virtual_keycode {
+                        Some(vkeycd) => keyboard_event::virtual_key_code_to_linux_input(vkeycd),
+                        None => 0,
                     }
-                    None => {}
-                }
+                };
+                self.client
+                    .borrow()
+                    .push
+                    .send(ChannelEdcsRequest::WriteKeyboardEvent {
+                        key_typ: key_typ,
+                        pressed: input.state == ElementState::Pressed,
+                    });
             }
             WindowEvent::ModifiersChanged(mod_state) => {
                 let send_event = |pressed: bool, vkeycd: VirtualKeyCode| {

@@ -108,7 +108,7 @@ pub fn virtual_key_code_to_linux_input(vkc: VirtualKeyCode) -> i32 {
         VirtualKeyCode::Apostrophe => KEY_APOSTROPHE,
         VirtualKeyCode::Apps => KEY_APPSELECT,
         VirtualKeyCode::Asterisk => KEY_KPASTERISK,
-        VirtualKeyCode::At => todo!(),
+        VirtualKeyCode::At => KEY_EMAIL,
         VirtualKeyCode::Ax => KEY_KPASTERISK,
         VirtualKeyCode::Backslash => KEY_BACKSLASH,
         VirtualKeyCode::Calculator => KEY_CALC,
