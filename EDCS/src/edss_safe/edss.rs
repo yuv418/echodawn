@@ -53,16 +53,12 @@ impl EdssAdapter {
             for key in self.cal_option_dict.keys() {
                 let key_c = key.to_owned() + "\0";
                 let val_c = self.cal_option_dict[key].to_owned() + "\0";
-                debug!(
-                    "sm_put returns {}, key_c {}, val_c {}",
-                    edss_unsafe::sm_put(
-                        str_map,
-                        key_c.as_ptr() as *const c_char,
-                        val_c.as_ptr() as *const c_char,
-                    ),
-                    key_c,
-                    val_c
+                let ret = edss_unsafe::sm_put(
+                    str_map,
+                    key_c.as_ptr() as *const c_char,
+                    val_c.as_ptr() as *const c_char,
                 );
+                debug!("sm_put returns {}, key_c {}, val_c {}", ret, key_c, val_c);
             }
 
             // Big brain: just loop through string chars and push it in

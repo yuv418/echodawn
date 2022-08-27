@@ -38,6 +38,7 @@ impl ControlBarUI {
     where
         Self: Sized,
     {
+        window.set_cursor_visible(false);
         let inner_size = window.inner_size();
         Self {
             client,
@@ -58,12 +59,14 @@ impl ControlBarUI {
 }
 
 impl UIElement for ControlBarUI {
+    fn render_egui(&mut self) -> bool {
+        false
+    }
     fn render(
         &mut self,
         ui: &mut egui::Ui,
         _ctrl_flow: &mut glutin::event_loop::ControlFlow,
     ) -> egui::InnerResponse<()> {
-        self.handle_messages();
         egui::Frame::none()
             .fill(egui::Color32::DARK_GRAY)
             .inner_margin(10.0)
@@ -186,7 +189,7 @@ impl UIElement for ControlBarUI {
     }
 
     fn paint_before_egui(&mut self, _gl: Rc<glow::Context>, window: &Window) {
-        // window.set_cursor_visible(false);
+        self.handle_messages();
         self.mpv_ctx.paint(window)
     }
 

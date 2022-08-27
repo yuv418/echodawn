@@ -1,3 +1,5 @@
 config/*
 target/*
 test.sdp
+callgrind*
+perf.data*

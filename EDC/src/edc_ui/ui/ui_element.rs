@@ -10,6 +10,7 @@ use glutin::{
 use super::mpv::MPVEvent;
 
 pub trait UIElement {
+    fn render_egui(&mut self) -> bool;
     fn render(&mut self, ui: &mut egui::Ui, ctrl_flow: &mut ControlFlow) -> InnerResponse<()>;
     fn handle_messages(&mut self);
     fn next_element(&mut self, window: &Window) -> Option<Box<dyn UIElement>>;

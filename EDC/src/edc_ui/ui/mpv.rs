@@ -26,6 +26,8 @@ pub struct MPVCtx {
     width: u32,
     height: u32,
     evloop_proxy: Option<Rc<EventLoopProxy<MPVEvent>>>,
+    mpv_ogl_fbo: mpv_opengl_fbo,
+    mpv_render_params: Vec<mpv_render_param>,
 }
 
 pub unsafe extern "C" fn get_proc_addr(ctx: *mut c_void, name: *const c_char) -> *mut c_void {
@@ -77,16 +79,21 @@ impl MPVCtx {
             }
 
             Self::mpv_set_opt(mpv, "profile", "low-latency");
-            Self::mpv_set_opt(mpv, "no-demuxer-thread", "yes");
             Self::mpv_set_opt(mpv, "rtsp-transport", "lavc");
             Self::mpv_set_opt(mpv, "video-latency-hacks", "yes");
+            Self::mpv_set_opt(mpv, "drop-buffers", "yes");
             Self::mpv_set_opt(mpv, "vd-lavc-threads", "1");
             Self::mpv_set_opt(mpv, "no-cache", "yes");
             Self::mpv_set_opt(mpv, "untimed", "yes");
             Self::mpv_set_opt(mpv, "hwdec", "yes");
-            Self::mpv_set_opt(mpv, "video-sync", "audio");
 
             assert!(mpv_initialize(mpv) == 0, "MPV failed to initialise!");
+            let ogl_init_params = mpv_opengl_init_params {
+                get_proc_address: Some(get_proc_addr),
+                get_proc_address_ctx: mem::transmute(window),
+                extra_exts: ptr::null(),
+            };
+            let mut ctr = [1];
             let mut mpv_render_params = vec![
                 mpv_render_param {
                     type_: mpv_render_param_type_MPV_RENDER_PARAM_API_TYPE,
@@ -94,15 +101,11 @@ impl MPVCtx {
                 },
                 mpv_render_param {
                     type_: mpv_render_param_type_MPV_RENDER_PARAM_OPENGL_INIT_PARAMS,
-                    data: mem::transmute(&mut mpv_opengl_init_params {
-                        get_proc_address: Some(get_proc_addr),
-                        get_proc_address_ctx: mem::transmute(window),
-                        extra_exts: ptr::null(),
-                    }),
+                    data: mem::transmute(&ogl_init_params),
                 },
                 mpv_render_param {
                     type_: mpv_render_param_type_MPV_RENDER_PARAM_ADVANCED_CONTROL,
-                    data: mem::transmute(&mut 1),
+                    data: mem::transmute(ctr.as_mut_ptr()),
                 },
                 mpv_render_param {
                     // end of params??
@@ -114,7 +117,7 @@ impl MPVCtx {
             assert!(
                 mpv_render_context_create(&mut mpv_gl, mpv, mpv_render_params.as_mut_ptr()) == 0,
                 "MPV failed to create the render context!"
-            )
+            );
         };
         let mut mpd_cmd_args: Vec<*const c_char> = vec![
             "loadfile\0".as_ptr() as _,
@@ -125,7 +128,12 @@ impl MPVCtx {
         ];
         unsafe { mpv_command_async(mpv, 0, mpd_cmd_args.as_mut_ptr() as *mut *const _) };
 
-        // SDP handling goes here
+        let mpv_ogl_fbo = mpv_opengl_fbo {
+            fbo: 0,
+            w: width as i32,
+            h: height as i32,
+            internal_format: 0,
+        };
 
         Ok(MPVCtx {
             mpv,
@@ -133,39 +141,40 @@ impl MPVCtx {
             width,
             height,
             evloop_proxy: None,
+            mpv_ogl_fbo,
+            mpv_render_params: unsafe {
+                vec![
+                    mpv_render_param {
+                        type_: mpv_render_param_type_MPV_RENDER_PARAM_OPENGL_FBO,
+                        data: mem::transmute(&mpv_ogl_fbo),
+                    },
+                    // Why does MPV render upside down by default ):
+                    mpv_render_param {
+                        type_: mpv_render_param_type_MPV_RENDER_PARAM_FLIP_Y,
+                        data: mem::transmute(&mut 1),
+                    },
+                    mpv_render_param {
+                        type_: mpv_render_param_type_MPV_RENDER_PARAM_ADVANCED_CONTROL,
+                        data: mem::transmute(&mut 1),
+                    },
+                    mpv_render_param {
+                        // end??
+                        type_: 0,
+                        data: ptr::null_mut(),
+                    },
+                ]
+            },
         })
     }
 
-    pub fn paint(&self, _window: &Window) {
-        let mut mpv_render_params = unsafe {
-            vec![
-                mpv_render_param {
-                    type_: mpv_render_param_type_MPV_RENDER_PARAM_OPENGL_FBO,
-                    data: mem::transmute(&mut mpv_opengl_fbo {
-                        fbo: 0,
-                        w: self.width as i32,
-                        h: self.height as i32,
-                        internal_format: 0,
-                    }),
-                },
-                // Why does MPV render upside down by default ):
-                mpv_render_param {
-                    type_: mpv_render_param_type_MPV_RENDER_PARAM_FLIP_Y,
-                    data: mem::transmute(&mut 1),
-                },
-                mpv_render_param {
-                    type_: mpv_render_param_type_MPV_RENDER_PARAM_ADVANCED_CONTROL,
-                    data: mem::transmute(&mut 1),
-                },
-                mpv_render_param {
-                    // end??
-                    type_: 0,
-                    data: ptr::null_mut(),
-                },
-            ]
-        };
+    pub fn paint(&mut self, _window: &Window) {
         unsafe {
-            mpv_render_context_render(self.mpv_gl, mpv_render_params.as_mut_ptr());
+            let mut y = [1];
+            let mut ctr = [1];
+            self.mpv_render_params[0].data = mem::transmute(&self.mpv_ogl_fbo);
+            self.mpv_render_params[1].data = mem::transmute(y.as_mut_ptr());
+            self.mpv_render_params[2].data = mem::transmute(ctr.as_mut_ptr());
+            mpv_render_context_render(self.mpv_gl, self.mpv_render_params.as_mut_ptr());
         }
     }
     pub fn handle_window_event(&self, _window_id: WindowId, event: WindowEvent) {

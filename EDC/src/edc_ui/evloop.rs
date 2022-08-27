@@ -52,9 +52,9 @@ impl EVLoopCtx {
                 }
                 Event::MainEventsCleared => self.window.window().request_redraw(),
                 Event::RedrawRequested(_) => {
+                    self.ui_ctx.setup_render(ctrl_flow, self.window.window());
                     self.ui_ctx
                         .paint_before_egui(self.gl.clone(), self.window.window());
-                    self.ui_ctx.setup_render(ctrl_flow, self.window.window());
                     self.ui_ctx.paint(self.window.window());
                     self.ui_ctx
                         .paint_after_egui(self.gl.clone(), self.window.window());

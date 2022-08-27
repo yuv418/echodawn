@@ -360,7 +360,7 @@ impl UIElement for ConnectUI {
         let waker = futures::task::noop_waker();
         let mut cx = std::task::Context::from_waker(&waker);
         if let Poll::Ready(Ok(msg)) =
-        Pin::new(&mut self.client.borrow_mut().recv.recv_async()).poll(&mut cx)
+            Pin::new(&mut self.client.borrow_mut().recv.recv_async()).poll(&mut cx)
         {
             self.pending_recv = false;
             debug!("set pending_recv to false");
@@ -392,7 +392,7 @@ impl UIElement for ConnectUI {
                                     Payload::SetupEdcsData(setup_edcs_data) => {
                                         debug!("connection stage setup stream");
                                         if let Some(AddClientStage::ClientConfigStage(_)) =
-                                        &self.add_client_stage
+                                            &self.add_client_stage
                                         {
                                             self.connection_config
                                                 .as_mut()
@@ -451,13 +451,13 @@ impl UIElement for ConnectUI {
                             bitrate: cfg.stream_config.bitrate,
                             framerate: cfg.stream_config.framerate,
                         })
-                            .expect("Failed to push SetupEdcs");
+                        .expect("Failed to push SetupEdcs");
                     }
                     ConnectionStage::SetupStream => {
                         push.send(ChannelEdcsRequest::SetupStream(
                             cfg.stream_config.cal_plugin_params.clone(),
                         ))
-                            .expect("Failed to push SetupStream");
+                        .expect("Failed to push SetupStream");
                     }
                     // Starting the stream should be done elsewhere after MPV has initialised.
                     _ => {
@@ -500,7 +500,8 @@ impl UIElement for ConnectUI {
         _ctrl_flow: &mut ControlFlow,
         _window_id: glutin::window::WindowId,
         _event: &glutin::event::WindowEvent,
-    ) {}
+    ) {
+    }
 
     fn handle_user_event(&self, _window: &Window, _ctrl_flow: &ControlFlow, _event: &MPVEvent) {
         // Do nothing
@@ -513,5 +514,10 @@ impl UIElement for ConnectUI {
     fn give_evloop_proxy(
         &mut self,
         _evloop_proxy: Rc<glutin::event_loop::EventLoopProxy<MPVEvent>>,
-    ) {}
+    ) {
+    }
+
+    fn render_egui(&mut self) -> bool {
+        true
+    }
 }

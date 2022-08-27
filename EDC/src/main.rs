@@ -47,6 +47,7 @@ fn main() -> anyhow::Result<()> {
         })
         .init();
 
+    puffin::set_scopes_on(true);
     info!("Starting up client!");
     /*let mut client = EdcClient::new(&args.config_file_path).await?;
     info!("Client connected to server");

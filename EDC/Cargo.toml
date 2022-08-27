@@ -34,6 +34,7 @@ async-mutex = "1"
 console-subscriber = "0.1"
 input-linux-sys = "0.7"
 platform-dirs = "0.3"
+puffin = "0.13"
 
 [build-dependencies]
 prost-build = "0.10"

@@ -65,6 +65,8 @@ impl BlockingEdcsClient {
         };
         let runtime = Builder::new_current_thread()
             .enable_all()
+            .event_interval(20)
+            .global_queue_interval(20)
             .build()
             .expect("Failed to build tokio runtime");
 

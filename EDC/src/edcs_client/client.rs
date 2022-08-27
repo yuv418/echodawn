@@ -39,6 +39,7 @@ impl rustls::client::ServerCertVerifier for NoCertVerify {
 pub struct EdcsClient {
     reader: ReadHalf<TlsStream<TcpStream>>,
     writer: WriteHalf<TlsStream<TcpStream>>,
+    delimiter_buf: Vec<u8>,
 }
 
 unsafe impl Send for EdcsClient {}
@@ -91,7 +92,11 @@ impl EdcsClient {
             .with_context(|| "Failed to connect to the EDCS server")?;
 
         let (reader, writer) = split(stream);
-        Ok(Self { reader, writer })
+        Ok(Self {
+            reader,
+            writer,
+            delimiter_buf: vec![],
+        })
     }
 
     // Handle sending RPCs to the EDCS
@@ -100,36 +105,35 @@ impl EdcsClient {
         msg: EdcsMessage,
         ignore_response: bool,
     ) -> anyhow::Result<EdcsResponse> {
-        let mut delimiter_buf: Vec<u8> = vec![];
         // Write length delimiter first
-        encode_length_delimiter(msg.encoded_len(), &mut delimiter_buf)?;
+        self.delimiter_buf.clear();
+        encode_length_delimiter(msg.encoded_len(), &mut self.delimiter_buf)?;
 
-        self.writer.flush().await?;
         // Pad the delimiter buffer so it is 10 bytes in length
-        while delimiter_buf.len() < 10 {
-            delimiter_buf.push(0)
-        }
-        self.writer.write_all(&mut delimiter_buf).await?;
+        self.delimiter_buf.resize(10, 0);
+
+        self.writer.write_all(&mut self.delimiter_buf).await?;
 
         trace!(
             "Writing length delimiter {:?}, encoded_len is {}",
-            delimiter_buf,
+            self.delimiter_buf,
             msg.encoded_len()
         );
 
         // We write the delimiter separately, so we don't need to encode with delimiter.
         let mut msg_buf = msg.encode_to_vec();
         self.writer.write_all(&mut msg_buf).await?;
+        self.writer.flush().await?;
         trace!("Wrote data {:?} to PB", msg_buf);
 
         if !ignore_response {
             let mut resp_len = 0;
             // Read response delimiter
-            while let Ok(_) = self.reader.read_exact(&mut delimiter_buf).await {
-                trace!("Read delimiter buf {:?}", delimiter_buf);
+            while let Ok(_) = self.reader.read_exact(&mut self.delimiter_buf).await {
+                trace!("Read delimiter buf {:?}", self.delimiter_buf);
                 trace!("resp_len = {}", resp_len);
 
-                resp_len = decode_length_delimiter(&delimiter_buf[..])?;
+                resp_len = decode_length_delimiter(&self.delimiter_buf[..])?;
                 let mut resp_buf = vec![0; resp_len];
                 while let Ok(_) = self.reader.read_exact(&mut resp_buf).await {
                     trace!("EDCS response data {:?}", &resp_buf[..]);

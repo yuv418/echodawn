@@ -39,17 +39,21 @@ impl UICtx {
     }
     // TODO can we get the window from egui_ctx
     pub fn setup_render(&mut self, ctrl_flow: &mut ControlFlow, window: &Window) -> bool {
-        self.egui_ctx.run(window, |ctx| {
-            ctx.set_visuals(egui::Visuals::dark());
-            let mut style = (*ctx.style()).clone();
-            style.spacing.item_spacing = egui::vec2(0.0, 7.0);
-            ctx.set_style(style);
+        if self.ui_element.render_egui() {
+            self.egui_ctx.run(window, |ctx| {
+                ctx.set_visuals(egui::Visuals::dark());
+                let mut style = (*ctx.style()).clone();
+                style.spacing.item_spacing = egui::vec2(0.0, 7.0);
+                ctx.set_style(style);
 
-            self.debug_area.borrow_mut().render(ctx, ctrl_flow);
-            egui::Area::new("control_area")
-                .fixed_pos(egui::pos2(100.0, 100.0))
-                .show(ctx, |ui| self.ui_element.render(ui, ctrl_flow));
-        })
+                self.debug_area.borrow_mut().render(ctx, ctrl_flow);
+                egui::Area::new("control_area")
+                    .fixed_pos(egui::pos2(100.0, 100.0))
+                    .show(ctx, |ui| self.ui_element.render(ui, ctrl_flow));
+            })
+        } else {
+            true
+        }
     }
 
     pub fn paint_before_egui(&mut self, gl: Rc<glow::Context>, window: &Window) {
@@ -60,7 +64,9 @@ impl UICtx {
     }
 
     pub fn paint(&mut self, window: &Window) {
-        self.egui_ctx.paint(window);
+        if self.ui_element.render_egui() {
+            self.egui_ctx.paint(window);
+        }
 
         // Replace the element for the next render. We need to pass window
         // to init a new element.
@@ -91,9 +97,11 @@ impl UICtx {
             _ => {}
         }
 
-        self.egui_ctx.on_event(&event);
+        if self.ui_element.render_egui() {
+            self.egui_ctx.on_event(&event);
+            self.debug_area.borrow_mut().handle_window_event(&event);
+        }
 
-        self.debug_area.borrow_mut().handle_window_event(&event);
         self.ui_element
             .handle_window_event(window, ctrl_flow, window_id, &event);
     }

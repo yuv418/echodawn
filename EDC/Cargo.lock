@@ -641,6 +641,7 @@ dependencies = [
  "prost 0.10.4",
  "prost-build",
  "prost-types 0.10.1",
+ "puffin",
  "rustls-pemfile",
  "serde",
  "tokio",
@@ -1792,6 +1793,16 @@ checksum = "4dfaa718ad76a44b3415e6c4d53b17c8f99160dcb3a99b10470fce8ad43f6e3e"
 dependencies = [
  "bytes",
  "prost 0.11.0",
+]
+
+[[package]]
+name = "puffin"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b40725b2702b9c660938b8d9c56978091252374cc50d73a83b59695b8d32ec03"
+dependencies = [
+ "byteorder",
+ "once_cell",
 ]
 
 [[package]]
