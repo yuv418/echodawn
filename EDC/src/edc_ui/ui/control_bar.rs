@@ -157,22 +157,24 @@ impl UIElement for ControlBarUI {
                     });
             }
             WindowEvent::ModifiersChanged(mod_state) => {
-                let send_event = |pressed: bool, vkeycd: VirtualKeyCode| {
-                    self.client
-                        .borrow()
-                        .push
-                        .send(ChannelEdcsRequest::WriteKeyboardEvent {
-                            key_typ: keyboard_event::virtual_key_code_to_linux_input(
-                                // Do we really want to crash the entire application because of this?
-                                vkeycd,
-                            ),
-                            pressed,
-                        });
-                };
-                if mod_state.logo() {
-                    send_event(true, VirtualKeyCode::LWin);
-                } else {
-                    send_event(false, VirtualKeyCode::LWin);
+                if !cfg!(linux) {
+                    let send_event = |pressed: bool, vkeycd: VirtualKeyCode| {
+                        self.client
+                            .borrow()
+                            .push
+                            .send(ChannelEdcsRequest::WriteKeyboardEvent {
+                                key_typ: keyboard_event::virtual_key_code_to_linux_input(
+                                    // Do we really want to crash the entire application because of this?
+                                    vkeycd,
+                                ),
+                                pressed,
+                            });
+                    };
+                    if mod_state.logo() {
+                        send_event(true, VirtualKeyCode::LWin);
+                    } else {
+                        send_event(false, VirtualKeyCode::LWin);
+                    }
                 }
             }
             _ => {}
