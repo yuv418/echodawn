@@ -79,7 +79,7 @@ EDSS_STATUS calInit(StrMap *calOptionDict, calConfig_t *calCfg) {
     ioctl(rtCfg.inputFd, UI_SET_KEYBIT, BTN_RIGHT);
     ioctl(rtCfg.inputFd, UI_SET_KEYBIT, BTN_MIDDLE);
     // Enable every key on a keyboard
-    for (int keyCode = 11; keyCode < 0x1a5; ++keyCode) {
+    for (int keyCode = 0; keyCode < KEY_CNT; ++keyCode) {
         ioctl(rtCfg.inputFd, UI_SET_KEYBIT, keyCode);
     }
 
