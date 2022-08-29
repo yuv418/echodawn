@@ -14,6 +14,5 @@ pub struct EdcsConfig {
 #[derive(Deserialize)]
 pub struct EdssConfig {
     pub plugin_name: String,
-    pub ip: Ipv4Addr,
     pub port: u16,
 }

@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use log::{debug, info};
@@ -19,6 +20,7 @@ impl EdcsHandler {
         &mut self,
         cfg: Arc<config::EdcsConfig>,
         msg: EdcsMessage,
+        addr: SocketAddr,
         // Some of the events (eg. keyboard/mouse) won't return a response since we don't want to waste time sending back thousands of "Ok" messages
         // In the future if we want to find failed K/M events we can create a separate request for that
     ) -> anyhow::Result<Option<EdcsResponse>> {
@@ -50,7 +52,7 @@ impl EdcsHandler {
                         // TODO autogenerate a random key and return it through the response.
                         match EdssAdapter::new(
                             cfg.edss_config.plugin_name.clone(),
-                            cfg.edss_config.ip,
+                            addr,
                             cfg.edss_config.port,
                             stream_params.bitrate,
                             stream_params.framerate,

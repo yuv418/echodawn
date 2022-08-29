@@ -35,7 +35,7 @@ static AVPacket *encPkt;
 static AVStream *avS;
 static AVFormatContext *fmtCtx;
 AVDictionary *opts;
-char rtpAddress[28]; // maximum ip:port length
+char rtpAddress[61]; // maximum ip:port length
 
 #define SDP_BUFLEN 3000
 
@@ -139,7 +139,7 @@ EDSS_STATUS edssInitServer(edssConfig_t *edssCfg, char **sdpBuffer) {
 
     const AVOutputFormat *rtpFmt;
     snprintf(rtpAddress, sizeof(rtpAddress), "srtp://%s:%d/",
-             inet_ntoa((struct in_addr){.s_addr = edssCfg->ip}), edssCfg->port);
+             edssCfg->socketAddr, edssCfg->port);
 
     rtpFmt = av_guess_format("rtp", NULL, NULL);
     if (!rtpFmt) {

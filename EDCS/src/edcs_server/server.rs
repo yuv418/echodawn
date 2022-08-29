@@ -116,7 +116,7 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                     let edcs_response = {
                         let mut handler_unlock = handler_copy.lock();
                         handler_unlock
-                            .handle_message(Arc::clone(&cfg_copy), edcs_message)
+                            .handle_message(Arc::clone(&cfg_copy), edcs_message, peer_addr)
                             .with_context(|| "Failed to get EDCS response")
                             .expect("Failed to get EDCS resp")
                     };
@@ -145,6 +145,7 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                             message_type: EdcsMessageType::CloseStream as i32,
                             payload: None,
                         },
+                        peer_addr,
                     );
                 }
             }

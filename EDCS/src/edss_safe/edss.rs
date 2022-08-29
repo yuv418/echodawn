@@ -8,14 +8,14 @@ use crate::edcs_server::edcs_proto::{
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::ffi::CStr;
-use std::net::Ipv4Addr;
+use std::net::SocketAddr;
 use std::os::raw::{c_char, c_void};
 
 pub struct EdssError(pub edss_unsafe::EDSS_STATUS);
 
 #[derive(Debug)]
 pub struct EdssAdapter {
-    pub ip: Ipv4Addr,
+    pub ip: SocketAddr,
     pub port: u16,
     pub bitrate: u32,
     pub framerate: u32,
@@ -46,7 +46,6 @@ impl EdssAdapter {
 
     fn to_c_struct(&self) -> edss_unsafe::edssConfig_t {
         // C requires the octets to be treated as little endian
-        let ip_int = u32::from_le_bytes(self.ip.octets());
         unsafe {
             let str_map = edss_unsafe::sm_new(self.cal_option_dict.len().try_into().unwrap());
             debug!("Begin conversion to C struct");
@@ -67,8 +66,13 @@ impl EdssAdapter {
                 srtp_out_params_c[i] = ch as c_char;
             }
 
+            let mut socket_addr_c: [c_char; 46] = ['\0' as c_char; 46];
+            for (i, ch) in self.ip.to_string().chars().enumerate() {
+                socket_addr_c[i] = ch as c_char;
+            }
+
             edss_unsafe::edssConfig_t {
-                ip: ip_int,
+                socketAddr: socket_addr_c,
                 port: self.port,
                 bitrate: self.bitrate,
                 framerate: self.framerate,
@@ -113,7 +117,7 @@ impl EdssAdapter {
 
     pub fn new(
         mut plugin_name: String,
-        ip: Ipv4Addr,
+        ip: SocketAddr,
         port: u16,
         bitrate: u32,
         framerate: u32,

@@ -15,8 +15,11 @@
  * this struct.
  */
 typedef struct {
-    uint32_t ip;   // IPv4 is a 32 bit int so that's what it is. This is useful
-                   // for cross-platform compatibility.
+    char socketAddr[INET6_ADDRSTRLEN]; // Converting a socket address to a
+                                       // string is easier in Rust than in C.
+                                       // Ipv6 length since it will fit both
+                                       // ipv4 and ipv6.
+
     uint16_t port; // max 65535
     uint32_t bitrate;
     uint32_t framerate;

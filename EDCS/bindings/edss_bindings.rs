@@ -5625,7 +5625,7 @@ extern "C" {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct edssConfig_t {
-    pub ip: u32,
+    pub socketAddr: [::std::os::raw::c_char; 46usize],
     pub port: u16,
     pub bitrate: u32,
     pub framerate: u32,
@@ -5636,7 +5636,7 @@ pub struct edssConfig_t {
 fn bindgen_test_layout_edssConfig_t() {
     assert_eq!(
         ::std::mem::size_of::<edssConfig_t>(),
-        72usize,
+        112usize,
         concat!("Size of: ", stringify!(edssConfig_t))
     );
     assert_eq!(
@@ -5644,23 +5644,23 @@ fn bindgen_test_layout_edssConfig_t() {
         8usize,
         concat!("Alignment of ", stringify!(edssConfig_t))
     );
-    fn test_field_ip() {
+    fn test_field_socketAddr() {
         assert_eq!(
             unsafe {
                 let uninit = ::std::mem::MaybeUninit::<edssConfig_t>::uninit();
                 let ptr = uninit.as_ptr();
-                ::std::ptr::addr_of!((*ptr).ip) as usize - ptr as usize
+                ::std::ptr::addr_of!((*ptr).socketAddr) as usize - ptr as usize
             },
             0usize,
             concat!(
                 "Offset of field: ",
                 stringify!(edssConfig_t),
                 "::",
-                stringify!(ip)
+                stringify!(socketAddr)
             )
         );
     }
-    test_field_ip();
+    test_field_socketAddr();
     fn test_field_port() {
         assert_eq!(
             unsafe {
@@ -5668,7 +5668,7 @@ fn bindgen_test_layout_edssConfig_t() {
                 let ptr = uninit.as_ptr();
                 ::std::ptr::addr_of!((*ptr).port) as usize - ptr as usize
             },
-            4usize,
+            46usize,
             concat!(
                 "Offset of field: ",
                 stringify!(edssConfig_t),
@@ -5685,7 +5685,7 @@ fn bindgen_test_layout_edssConfig_t() {
                 let ptr = uninit.as_ptr();
                 ::std::ptr::addr_of!((*ptr).bitrate) as usize - ptr as usize
             },
-            8usize,
+            48usize,
             concat!(
                 "Offset of field: ",
                 stringify!(edssConfig_t),
@@ -5702,7 +5702,7 @@ fn bindgen_test_layout_edssConfig_t() {
                 let ptr = uninit.as_ptr();
                 ::std::ptr::addr_of!((*ptr).framerate) as usize - ptr as usize
             },
-            12usize,
+            52usize,
             concat!(
                 "Offset of field: ",
                 stringify!(edssConfig_t),
@@ -5719,7 +5719,7 @@ fn bindgen_test_layout_edssConfig_t() {
                 let ptr = uninit.as_ptr();
                 ::std::ptr::addr_of!((*ptr).srtpOutParams) as usize - ptr as usize
             },
-            16usize,
+            56usize,
             concat!(
                 "Offset of field: ",
                 stringify!(edssConfig_t),
@@ -5736,7 +5736,7 @@ fn bindgen_test_layout_edssConfig_t() {
                 let ptr = uninit.as_ptr();
                 ::std::ptr::addr_of!((*ptr).calOptionDict) as usize - ptr as usize
             },
-            64usize,
+            104usize,
             concat!(
                 "Offset of field: ",
                 stringify!(edssConfig_t),
