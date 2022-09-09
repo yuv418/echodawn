@@ -4,3 +4,4 @@ test.sdp
 callgrind*
 perf.data*
 flamegraph.svg
+build/
