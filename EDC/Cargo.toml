@@ -35,6 +35,7 @@ console-subscriber = "0.1"
 input-linux-sys = "0.7"
 platform-dirs = "0.3"
 puffin = "0.13"
+ffmpeg-sys-next = "5.1.1"
 
 [build-dependencies]
 prost-build = "0.10"
