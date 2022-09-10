@@ -21,9 +21,9 @@ pub mod test_decoder_bridge {
     pub fn init_decoder_bridge() {
         let decoder = decoder_bridge::new_edc_decoder("bla");
         if let Some(pt) = decoder.as_ref() {
-            println!("address {:p}", pt);
+            println!("\naddress {:p}", pt);
         } else {
-            println!("decoder was null\n");
+            println!("\ndecoder was null");
         }
         assert_eq!(decoder.is_null(), false);
     }

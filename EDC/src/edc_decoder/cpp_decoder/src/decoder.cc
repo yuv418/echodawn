@@ -24,9 +24,9 @@ EdcDecoder::EdcDecoder(rust::Str sdp_str) {
     std::string sdp_str_cpp("data:appliation/sdp;");
     sdp_str_cpp += sdp_str.data();
 
-    std::cout << "SDP String: " << sdp_str << std::endl;
+    std::cout << "SDP String: " << sdp_str_cpp << std::endl;
 
-    ret = avformat_open_input(&this->inp_ctx, sdp_str.data(), NULL, NULL);
+    ret = avformat_open_input(&this->inp_ctx, sdp_str_cpp.c_str(), NULL, NULL);
     if (ret) {
         throw std::runtime_error("avformat_open_input failed");
     }
