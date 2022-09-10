@@ -1,21 +1,32 @@
-#include "decoder.h"
+#include "../inc/decoder.h"
 
-using namespace std;
+#include <boost/lockfree/policies.hpp>
+#include <boost/lockfree/spsc_queue.hpp>
+#include <libavutil/mem.h>
+#include <memory>
 
 // TODO better exception handling
-EdcDecoder::EdcDecoder(string sdp_str) {
+namespace edc_decoder {
+
+EdcDecoder::EdcDecoder(rust::Str sdp_str) {
     int ret;
+
+    this->frame_ring =
+        new boost::lockfree::spsc_queue<AVFrame *,
+                                        boost::lockfree::capacity<2>>();
 
     ret = avformat_network_init();
     if (ret) {
         throw std::runtime_error("avformat_network_init failed");
     }
 
-    sdp_str.insert(0, "data:application/sdp;");
+    // FFmpeg should
+    std::string sdp_str_cpp("data:appliation/sdp;");
+    sdp_str_cpp += sdp_str.data();
 
-    cout << "SDP String: " << sdp_str << endl;
+    std::cout << "SDP String: " << sdp_str << std::endl;
 
-    ret = avformat_open_input(&this->inp_ctx, sdp_str.c_str(), NULL, NULL);
+    ret = avformat_open_input(&this->inp_ctx, sdp_str.data(), NULL, NULL);
     if (ret) {
         throw std::runtime_error("avformat_open_input failed");
     }
@@ -23,7 +34,7 @@ EdcDecoder::EdcDecoder(string sdp_str) {
     if (ret) {
         throw std::runtime_error("avformat_find_stream_info failed");
     }
-    for (int i = 0; i < this->inp_ctx->nb_streams; ++i) {
+    for (unsigned int i = 0; i < this->inp_ctx->nb_streams; ++i) {
         // For now, there is only the video stream and
         // no audio stream, so we do not have to handle the audio stream.
         // Nonetheless, we will check for an audio stream.
@@ -37,7 +48,9 @@ EdcDecoder::EdcDecoder(string sdp_str) {
         this->cdc_ctx = avcodec_alloc_context3(NULL);
         avcodec_parameters_to_context(this->cdc_ctx, v_stream->codecpar);
     }
-    this->decode_thread = std::thread([this] { this->DecodeFrameThread(); });
+    this->decoding_finished = false;
+    this->decode_thread =
+        new std::thread([this] { this->DecodeFrameThread(); });
 }
 
 bool EdcDecoder::DecodeFrameThread() {
@@ -70,9 +83,23 @@ bool EdcDecoder::DecodeFrameThread() {
             return false;
         }
         // This won't push if the ring is full.
-        this->frame_ring.push(rgb_frame);
+        this->frame_ring->push(rgb_frame);
     }
     return true;
 }
 
-} // namespace edc_decoder
+EdcDecoder::~EdcDecoder() {
+    this->decoding_finished = true;
+    this->decode_thread->join();
+    delete this->decode_thread;
+    delete this->frame_ring;
+
+    // av_freep(&this->inp_ctx);
+    // av_freep(&this->cdc_ctx);
+}
+
+std::unique_ptr<EdcDecoder> new_edc_decoder(rust::Str sdp) {
+    return std::make_unique<EdcDecoder>(sdp);
+}
+
+}; // namespace edc_decoder

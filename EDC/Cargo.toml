@@ -36,6 +36,9 @@ input-linux-sys = "0.7"
 platform-dirs = "0.3"
 puffin = "0.13"
 ffmpeg-sys-next = "5.1.1"
+cxx = "1.0"
 
 [build-dependencies]
 prost-build = "0.10"
+cxx-build = "1.0"
+
