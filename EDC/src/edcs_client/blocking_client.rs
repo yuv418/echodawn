@@ -108,6 +108,7 @@ impl BlockingEdcsClient {
                         ChannelEdcsRequest::SetupEdcs { bitrate, framerate } => {
                             ChannelEdcsResponse::EdcsResponse({
                                 let ret = edcs_client.setup_edcs(framerate, bitrate).await;
+                                trace!("setup_edcs returns {:?}", ret);
                                 ret
                             })
                         }
@@ -178,6 +179,7 @@ impl BlockingEdcsClient {
                 };
             }
         };
+
         trace!("dropping mutex");
         std::mem::drop(edcs_client_opt);
         resp

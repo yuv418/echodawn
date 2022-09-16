@@ -16,15 +16,17 @@ use crate::edcs_client::{
 
 use super::{
     debug_area::DebugArea,
+    ffmpeg::FFmpegCtx,
     mpv::{self, MPVEvent},
     ui_element::UIElement,
+    video_decoder::VideoDecoder,
 };
 
 /// The bar that lets you control everything during an active connection
 pub struct ControlBarUI {
     client: Rc<RefCell<BlockingEdcsClient>>,
     debug_area: Rc<RefCell<DebugArea>>,
-    mpv_ctx: mpv::MPVCtx,
+    mpv_ctx: Box<dyn VideoDecoder>,
     stream_started: bool,
     prev_pos: PhysicalPosition<f64>,
 }
@@ -43,7 +45,7 @@ impl ControlBarUI {
         Self {
             client,
             debug_area,
-            mpv_ctx: mpv::MPVCtx::new(
+            mpv_ctx: FFmpegCtx::new(
                 window,
                 inner_size.width,
                 inner_size.height,
@@ -102,7 +104,7 @@ impl UIElement for ControlBarUI {
     ) {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
-                trace!("mouse move source {:?}", event);
+                trace!("moAlso apparently my use move source {:?}", event);
                 let ret = self
                     .client
                     .borrow()

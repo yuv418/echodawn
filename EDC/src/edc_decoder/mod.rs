@@ -7,7 +7,7 @@ pub mod decoder_bridge {
         include!("edc/src/edc_decoder/cpp_decoder/inc/decoder.h");
 
         pub type EdcDecoder;
-        pub fn new_edc_decoder(sdp: &str) -> UniquePtr<EdcDecoder>;
+        pub fn new_edc_decoder(sdp_file_path: &str) -> UniquePtr<EdcDecoder>;
     }
 }
 

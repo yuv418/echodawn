@@ -13,8 +13,10 @@ use crate::edcs_client::blocking_client::{self, BlockingEdcsClient};
 mod connect;
 mod control_bar;
 mod debug_area;
+pub(crate) mod ffmpeg;
 pub(crate) mod mpv;
 mod ui_element;
+mod video_decoder;
 
 use ui_element::UIElement;
 

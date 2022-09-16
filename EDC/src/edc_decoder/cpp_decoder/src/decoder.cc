@@ -2,6 +2,7 @@
 
 #include <boost/lockfree/policies.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
+#include <libavformat/avformat.h>
 #include <libavutil/mem.h>
 #include <memory>
 
@@ -21,11 +22,13 @@ EdcDecoder::EdcDecoder(rust::Str sdp_str) {
     }
 
     // FFmpeg should
-    std::string sdp_str_cpp("data:appliation/sdp;");
+    std::string sdp_str_cpp("data:appliation/sdp;charset=UTF-8,");
+
     sdp_str_cpp += sdp_str.data();
 
-    std::cout << "SDP String: " << sdp_str_cpp << std::endl;
+    std::cout << "SDP String: " << sdp_str_cpp.c_str() << std::endl;
 
+    this->inp_ctx = NULL;
     ret = avformat_open_input(&this->inp_ctx, sdp_str_cpp.c_str(), NULL, NULL);
     if (ret) {
         throw std::runtime_error("avformat_open_input failed");
