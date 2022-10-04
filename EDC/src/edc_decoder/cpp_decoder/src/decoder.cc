@@ -2,6 +2,7 @@
 
 #include <boost/lockfree/policies.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
+#include <cstdint>
 #include <libavformat/avformat.h>
 #include <libavutil/mem.h>
 #include <memory>
@@ -9,7 +10,7 @@
 // TODO better exception handling
 namespace edc_decoder {
 
-EdcDecoder::EdcDecoder(rust::Str sdp_str) {
+EdcDecoder::EdcDecoder(rust::Str sdp_str, uint32_t width, uint32_t height) {
     int ret;
 
     this->frame_ring =
@@ -29,10 +30,13 @@ EdcDecoder::EdcDecoder(rust::Str sdp_str) {
     std::cout << "SDP String: " << sdp_str_cpp.c_str() << std::endl;
 
     this->inp_ctx = NULL;
+    std::cout << "opening input" << std::endl;
     ret = avformat_open_input(&this->inp_ctx, sdp_str_cpp.c_str(), NULL, NULL);
     if (ret) {
         throw std::runtime_error("avformat_open_input failed");
     }
+    std::cout << "finding stream info" << std::endl;
+    // NOTE this doesn't actually work.
     ret = avformat_find_stream_info(this->inp_ctx, NULL);
     if (ret) {
         throw std::runtime_error("avformat_find_stream_info failed");
@@ -48,6 +52,8 @@ EdcDecoder::EdcDecoder(rust::Str sdp_str) {
                 "video stream.");
         }
 
+        v_stream->codecpar->width = width;
+        v_stream->codecpar->height = height;
         this->cdc_ctx = avcodec_alloc_context3(NULL);
         avcodec_parameters_to_context(this->cdc_ctx, v_stream->codecpar);
     }
@@ -80,6 +86,7 @@ bool EdcDecoder::DecodeFrameThread() {
         if (ret >= 0) {
             return true;
         }
+        std::cout << "linesize " << frame->linesize << std::endl;
         ret = sws_scale(sws_ctx, frame->data, frame->linesize, 0,
                         cdc_ctx->height, rgb_frame->data, rgb_frame->linesize);
         if (!ret) {
@@ -89,6 +96,14 @@ bool EdcDecoder::DecodeFrameThread() {
         this->frame_ring->push(rgb_frame);
     }
     return true;
+}
+
+AVFrame *EdcDecoder::fetch_ring_frame() const {
+    AVFrame *poppedFrame;
+    if (this->frame_ring->pop(poppedFrame)) {
+        return poppedFrame;
+    }
+    return NULL;
 }
 
 EdcDecoder::~EdcDecoder() {
@@ -101,8 +116,9 @@ EdcDecoder::~EdcDecoder() {
     // av_freep(&this->cdc_ctx);
 }
 
-std::unique_ptr<EdcDecoder> new_edc_decoder(rust::Str sdp) {
-    return std::make_unique<EdcDecoder>(sdp);
+std::unique_ptr<EdcDecoder> new_edc_decoder(rust::Str sdp, uint32_t width,
+                                            uint32_t height) {
+    return std::make_unique<EdcDecoder>(sdp, width, height);
 }
 
 }; // namespace edc_decoder

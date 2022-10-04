@@ -7,7 +7,13 @@ pub mod decoder_bridge {
         include!("edc/src/edc_decoder/cpp_decoder/inc/decoder.h");
 
         pub type EdcDecoder;
-        pub fn new_edc_decoder(sdp_file_path: &str) -> UniquePtr<EdcDecoder>;
+        pub type AVFramePublic;
+        pub fn new_edc_decoder(
+            sdp_file_path: &str,
+            width: u32,
+            height: u32,
+        ) -> UniquePtr<EdcDecoder>;
+        pub fn fetch_ring_frame(self: &EdcDecoder) -> *mut AVFramePublic;
     }
 }
 

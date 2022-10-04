@@ -19,21 +19,28 @@ extern "C" {
 }
 
 namespace edc_decoder {
+
+using AVFramePublic = AVFrame;
+
 class EdcDecoder {
   public:
-    EdcDecoder(rust::Str sdp);
+    EdcDecoder(rust::Str sdp, uint32_t width, uint32_t height);
     ~EdcDecoder();
+    // For now. Later, we will reimplement AVFrame or something since I do not
+    // know how to return an AVFrame from this method and access it in Rust.
+    AVFrame *fetch_ring_frame() const;
 
   private:
+    boost::lockfree::spsc_queue<AVFrame *, boost::lockfree::capacity<2>>
+        *frame_ring;
     bool decoding_finished;
     std::thread *decode_thread;
     AVFormatContext *inp_ctx;
     AVCodecContext *cdc_ctx;
     // Queue of frames
-    boost::lockfree::spsc_queue<AVFrame *, boost::lockfree::capacity<2>>
-        *frame_ring;
     bool DecodeFrameThread();
 };
 
-std::unique_ptr<EdcDecoder> new_edc_decoder(rust::Str sdp);
+std::unique_ptr<EdcDecoder> new_edc_decoder(rust::Str sdp, uint32_t width,
+                                            uint32_t height);
 } // namespace edc_decoder

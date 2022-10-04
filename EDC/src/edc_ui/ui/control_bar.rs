@@ -104,7 +104,7 @@ impl UIElement for ControlBarUI {
     ) {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
-                trace!("moAlso apparently my use move source {:?}", event);
+                trace!("source {:?}", event);
                 let ret = self
                     .client
                     .borrow()

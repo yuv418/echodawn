@@ -1,17 +1,28 @@
 use std::ptr::{null, null_mut};
 
 use anyhow::anyhow;
+use cxx::UniquePtr;
 use glutin::{
     event::WindowEvent,
     event_loop::ControlFlow,
     window::{Window, WindowId},
 };
+use log::trace;
 
 use super::{mpv::MPVEvent, video_decoder::VideoDecoder};
-use crate::edc_decoder::decoder_bridge;
+use crate::edc_decoder::decoder_bridge::{self, EdcDecoder};
 
-#[derive(Debug)]
-pub struct FFmpegCtx {}
+pub struct FFmpegCtx {
+    decoder: UniquePtr<EdcDecoder>,
+}
+
+impl std::fmt::Debug for FFmpegCtx {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FFmpegCtx")
+            .field("decoder -> {}", &"CPP impl")
+            .finish()
+    }
+}
 
 impl VideoDecoder for FFmpegCtx {
     fn new(
@@ -21,8 +32,13 @@ impl VideoDecoder for FFmpegCtx {
         debug: bool,
         sdp: String,
     ) -> anyhow::Result<Box<dyn VideoDecoder>> {
-        let decoder = decoder_bridge::new_edc_decoder(&sdp);
-        unimplemented!()
+        let decoder = decoder_bridge::new_edc_decoder(&sdp, width, height);
+        unsafe {
+            let a = decoder.fetch_ring_frame();
+            trace!("a's address is {:p}", a);
+            // println!("{:?}", (*a?/ ).);
+        }
+        Ok(Box::new(Self { decoder }))
     }
 
     fn paint(&mut self, _window: &Window) {}
