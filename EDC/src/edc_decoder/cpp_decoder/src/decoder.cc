@@ -3,9 +3,11 @@
 #include <boost/lockfree/policies.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 #include <cstdint>
-#include <libavformat/avformat.h>
-#include <libavutil/mem.h>
 #include <memory>
+
+void av_logging_callback(void *ptr, int lvl, const char *fmt, va_list vargs) {
+    vprintf(fmt, vargs);
+}
 
 // TODO better exception handling
 namespace edc_decoder {
@@ -16,8 +18,11 @@ EdcDecoder::EdcDecoder(rust::Str sdp_str, uint32_t width, uint32_t height) {
     this->frame_ring =
         new boost::lockfree::spsc_queue<AVFrame *,
                                         boost::lockfree::capacity<2>>();
+    av_log_set_level(AV_LOG_TRACE);
+    av_log_set_callback(av_logging_callback);
 
     ret = avformat_network_init();
+
     if (ret) {
         throw std::runtime_error("avformat_network_init failed");
     }
@@ -30,8 +35,9 @@ EdcDecoder::EdcDecoder(rust::Str sdp_str, uint32_t width, uint32_t height) {
     std::cout << "SDP String: " << sdp_str_cpp.c_str() << std::endl;
 
     this->inp_ctx = NULL;
-    std::cout << "opening input" << std::endl;
+    std::cout << "opening input " << sdp_str_cpp.c_str() << std::endl;
     ret = avformat_open_input(&this->inp_ctx, sdp_str_cpp.c_str(), NULL, NULL);
+    std::cout << "Input format is " << this->inp_ctx->iformat << std::endl;
     if (ret) {
         throw std::runtime_error("avformat_open_input failed");
     }
@@ -57,6 +63,8 @@ EdcDecoder::EdcDecoder(rust::Str sdp_str, uint32_t width, uint32_t height) {
         this->cdc_ctx = avcodec_alloc_context3(NULL);
         avcodec_parameters_to_context(this->cdc_ctx, v_stream->codecpar);
     }
+    this->cdc_ctx->width = width;
+    this->cdc_ctx->height = height;
     this->decoding_finished = false;
     this->decode_thread =
         new std::thread([this] { this->DecodeFrameThread(); });
@@ -67,6 +75,11 @@ bool EdcDecoder::DecodeFrameThread() {
     AVFrame *frame;
     SwsContext *sws_ctx;
     AVFrame *rgb_frame;
+
+    std::cout << "height, width: " << this->cdc_ctx->height << " "
+              << this->cdc_ctx->width << std::endl;
+
+    this->cdc_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
 
     sws_getContext(this->cdc_ctx->width, this->cdc_ctx->height,
                    this->cdc_ctx->pix_fmt, this->cdc_ctx->width,
@@ -118,7 +131,10 @@ EdcDecoder::~EdcDecoder() {
 
 std::unique_ptr<EdcDecoder> new_edc_decoder(rust::Str sdp, uint32_t width,
                                             uint32_t height) {
-    return std::make_unique<EdcDecoder>(sdp, width, height);
+    auto ptr = std::make_unique<EdcDecoder>(sdp, width, height);
+    std::cout << "The pointer to EdcDecoder from C++ is equal to " << ptr.get()
+              << std::endl;
+    return ptr;
 }
 
 }; // namespace edc_decoder

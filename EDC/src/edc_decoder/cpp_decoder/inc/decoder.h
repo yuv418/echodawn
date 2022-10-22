@@ -15,6 +15,9 @@ extern "C" {
 #include <libavcodec/codec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
+#include <libavutil/log.h>
+#include <libavutil/mem.h>
+#include <libavutil/pixfmt.h>
 #include <libswscale/swscale.h>
 }
 

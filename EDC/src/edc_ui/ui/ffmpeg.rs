@@ -32,10 +32,11 @@ impl VideoDecoder for FFmpegCtx {
         debug: bool,
         sdp: String,
     ) -> anyhow::Result<Box<dyn VideoDecoder>> {
-        let decoder = decoder_bridge::new_edc_decoder(&sdp, width, height);
+        let mut decoder = decoder_bridge::new_edc_decoder(&sdp, width, height);
+        trace!("decoder pointer is {:p}", decoder.as_mut().unwrap());
         unsafe {
             let a = decoder.fetch_ring_frame();
-            trace!("a's address is {:p}", a);
+            trace!("fetched ring frame address is {:p}", a);
             // println!("{:?}", (*a?/ ).);
         }
         Ok(Box::new(Self { decoder }))
