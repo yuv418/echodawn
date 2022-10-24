@@ -3,7 +3,22 @@
 #include <boost/lockfree/policies.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 #include <cstdint>
+#include <libavutil/error.h>
+#include <libavutil/frame.h>
 #include <memory>
+
+// https://github.com/joncampbell123/composite-video-simulator/issues/5
+#ifdef av_err2str
+#undef av_err2str
+#include <string>
+
+av_always_inline std::string av_err2string(int errnum) {
+    char str[AV_ERROR_MAX_STRING_SIZE];
+    return av_make_error_string(str, AV_ERROR_MAX_STRING_SIZE, errnum);
+}
+
+#define av_err2str(err) av_err2string(err).c_str()
+#endif // av_err2str
 
 void av_logging_callback(void *ptr, int lvl, const char *fmt, va_list vargs) {
     vprintf(fmt, vargs);
@@ -63,6 +78,16 @@ void EdcDecoder::start_decoding() {
         this->cdc_ctx = avcodec_alloc_context3(NULL);
         avcodec_parameters_to_context(this->cdc_ctx, v_stream->codecpar);
     }
+
+    const AVCodec *decodeCodec;
+    decodeCodec = avcodec_find_decoder(this->cdc_ctx->codec_id);
+
+    ret = avcodec_open2(this->cdc_ctx, decodeCodec, NULL);
+    if (ret) {
+        printf("avcodec_open2 returned %s\n", av_err2str(ret));
+        throw std::runtime_error("avcodec_open2 failed");
+    }
+
     this->decoding_finished = false;
     this->decode_thread =
         new std::thread([this] { this->DecodeFrameThread(); });
@@ -83,6 +108,9 @@ bool EdcDecoder::DecodeFrameThread() {
                    this->cdc_ctx->height, AV_PIX_FMT_RGB24, SWS_BICUBIC, NULL,
                    NULL, NULL);
     int ret;
+
+    frame = av_frame_alloc();
+    rgb_frame = av_frame_alloc();
 
     while (true) {
         if (this->decoding_finished) {
