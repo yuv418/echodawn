@@ -22,6 +22,8 @@ use super::{
     video_decoder::VideoDecoder,
 };
 
+use cxx::UniquePtr;
+
 /// The bar that lets you control everything during an active connection
 pub struct ControlBarUI {
     client: Rc<RefCell<BlockingEdcsClient>>,
@@ -88,6 +90,7 @@ impl UIElement for ControlBarUI {
                 .send(ChannelEdcsRequest::StartStream)
                 .expect("Failed to start video stream");
             self.stream_started = true;
+            self.mpv_ctx.start_decoding();
         }
     }
 

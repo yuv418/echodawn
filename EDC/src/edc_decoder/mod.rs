@@ -14,6 +14,7 @@ pub mod decoder_bridge {
             height: u32,
         ) -> UniquePtr<EdcDecoder>;
         pub fn fetch_ring_frame(self: &EdcDecoder) -> *mut AVFramePublic;
+        pub fn start_decoding(self: Pin<&mut EdcDecoder>);
     }
 }
 

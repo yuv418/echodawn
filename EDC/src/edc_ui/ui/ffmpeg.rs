@@ -32,6 +32,7 @@ impl VideoDecoder for FFmpegCtx {
         debug: bool,
         sdp: String,
     ) -> anyhow::Result<Box<dyn VideoDecoder>> {
+        std::fs::write("test.sdp", &sdp)?;
         let mut decoder = decoder_bridge::new_edc_decoder(&sdp, width, height);
         trace!("decoder pointer is {:p}", decoder.as_mut().unwrap());
         unsafe {
@@ -57,5 +58,10 @@ impl VideoDecoder for FFmpegCtx {
         evloop_proxy: std::rc::Rc<glutin::event_loop::EventLoopProxy<MPVEvent>>,
     ) -> bool {
         true
+    }
+
+    fn start_decoding(&mut self) {
+        // Start the stream.
+        self.decoder.as_mut().unwrap().start_decoding();
     }
 }

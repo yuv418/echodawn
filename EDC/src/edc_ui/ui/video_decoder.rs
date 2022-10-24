@@ -23,4 +23,5 @@ pub trait VideoDecoder {
     fn handle_user_event(&self, window: &Window, _ctrl_flow: &ControlFlow, event: &MPVEvent);
     fn needs_evloop_proxy(&mut self) -> bool;
     fn give_evloop_proxy(&mut self, evloop_proxy: Rc<EventLoopProxy<MPVEvent>>) -> bool;
+    fn start_decoding(&mut self);
 }

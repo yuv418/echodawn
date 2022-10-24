@@ -4,8 +4,7 @@
 #include <boost/lockfree/policies.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 #include <iostream>
-#include <libavutil/avutil.h>
-#include <libavutil/frame.h>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -15,6 +14,7 @@ extern "C" {
 #include <libavcodec/codec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
+#include <libavutil/frame.h>
 #include <libavutil/log.h>
 #include <libavutil/mem.h>
 #include <libavutil/pixfmt.h>
@@ -32,11 +32,13 @@ class EdcDecoder {
     // For now. Later, we will reimplement AVFrame or something since I do not
     // know how to return an AVFrame from this method and access it in Rust.
     AVFrame *fetch_ring_frame() const;
+    void start_decoding();
 
   private:
     boost::lockfree::spsc_queue<AVFrame *, boost::lockfree::capacity<2>>
         *frame_ring;
     bool decoding_finished;
+    std::string sdp_str_cpp;
     std::thread *decode_thread;
     AVFormatContext *inp_ctx;
     AVCodecContext *cdc_ctx;

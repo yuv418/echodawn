@@ -13,13 +13,20 @@ void av_logging_callback(void *ptr, int lvl, const char *fmt, va_list vargs) {
 namespace edc_decoder {
 
 EdcDecoder::EdcDecoder(rust::Str sdp_str, uint32_t width, uint32_t height) {
-    int ret;
-
     this->frame_ring =
         new boost::lockfree::spsc_queue<AVFrame *,
                                         boost::lockfree::capacity<2>>();
-    av_log_set_level(AV_LOG_TRACE);
-    av_log_set_callback(av_logging_callback);
+
+    this->sdp_str_cpp = "data:appliation/sdp;charset=UTF-8,";
+    this->sdp_str_cpp += sdp_str.data();
+    this->inp_ctx = NULL;
+
+    // av_log_set_level(AV_LOG_TRACE);
+    // av_log_set_callback(av_logging_callback);
+}
+
+void EdcDecoder::start_decoding() {
+    int ret;
 
     ret = avformat_network_init();
 
@@ -27,16 +34,12 @@ EdcDecoder::EdcDecoder(rust::Str sdp_str, uint32_t width, uint32_t height) {
         throw std::runtime_error("avformat_network_init failed");
     }
 
-    // FFmpeg should
-    std::string sdp_str_cpp("data:appliation/sdp;charset=UTF-8,");
-
-    sdp_str_cpp += sdp_str.data();
-
     std::cout << "SDP String: " << sdp_str_cpp.c_str() << std::endl;
 
-    this->inp_ctx = NULL;
-    std::cout << "opening input " << sdp_str_cpp.c_str() << std::endl;
-    ret = avformat_open_input(&this->inp_ctx, sdp_str_cpp.c_str(), NULL, NULL);
+    AVDictionary *d = NULL;
+    ret = avformat_open_input(&this->inp_ctx, this->sdp_str_cpp.c_str(), NULL,
+                              &d);
+
     std::cout << "Input format is " << this->inp_ctx->iformat << std::endl;
     if (ret) {
         throw std::runtime_error("avformat_open_input failed");
@@ -58,13 +61,8 @@ EdcDecoder::EdcDecoder(rust::Str sdp_str, uint32_t width, uint32_t height) {
                 "video stream.");
         }
 
-        v_stream->codecpar->width = width;
-        v_stream->codecpar->height = height;
-        this->cdc_ctx = avcodec_alloc_context3(NULL);
         avcodec_parameters_to_context(this->cdc_ctx, v_stream->codecpar);
     }
-    this->cdc_ctx->width = width;
-    this->cdc_ctx->height = height;
     this->decoding_finished = false;
     this->decode_thread =
         new std::thread([this] { this->DecodeFrameThread(); });
