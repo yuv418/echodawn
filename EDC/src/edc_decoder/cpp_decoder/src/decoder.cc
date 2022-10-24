@@ -60,7 +60,7 @@ void EdcDecoder::start_decoding() {
                 "The client sent an audio stream when there should only be a "
                 "video stream.");
         }
-
+        this->cdc_ctx = avcodec_alloc_context3(NULL);
         avcodec_parameters_to_context(this->cdc_ctx, v_stream->codecpar);
     }
     this->decoding_finished = false;
@@ -69,14 +69,13 @@ void EdcDecoder::start_decoding() {
 }
 
 bool EdcDecoder::DecodeFrameThread() {
-    AVPacket *pkt;
+    AVPacket pkt;
     AVFrame *frame;
     SwsContext *sws_ctx;
     AVFrame *rgb_frame;
 
     std::cout << "height, width: " << this->cdc_ctx->height << " "
               << this->cdc_ctx->width << std::endl;
-
     this->cdc_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
 
     sws_getContext(this->cdc_ctx->width, this->cdc_ctx->height,
@@ -84,29 +83,35 @@ bool EdcDecoder::DecodeFrameThread() {
                    this->cdc_ctx->height, AV_PIX_FMT_RGB24, SWS_BICUBIC, NULL,
                    NULL, NULL);
     int ret;
-    if (av_read_frame(this->inp_ctx, pkt) < 0) {
-        av_packet_unref(pkt);
-        return false;
+
+    while (true) {
+        if (this->decoding_finished) {
+            break;
+        }
+        if (av_read_frame(this->inp_ctx, &pkt) < 0) {
+            av_packet_unref(&pkt);
+            continue;
+        }
+        ret = avcodec_send_packet(this->cdc_ctx, &pkt);
+        if (ret > 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+            if (ret >= 0) {
+                pkt.size = 0;
+            }
+            ret = avcodec_receive_frame(this->cdc_ctx, frame);
+            if (ret >= 0) {
+                continue;
+            }
+            std::cout << "linesize " << frame->linesize << std::endl;
+            ret = sws_scale(sws_ctx, frame->data, frame->linesize, 0,
+                            cdc_ctx->height, rgb_frame->data,
+                            rgb_frame->linesize);
+            if (!ret) {
+                continue;
+            }
+            // This won't push if the ring is full.
+            this->frame_ring->push(rgb_frame);
+        }
     }
-    ret = avcodec_send_packet(this->cdc_ctx, pkt);
-    if (ret > 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-        if (ret >= 0) {
-            pkt->size = 0;
-        }
-        ret = avcodec_receive_frame(this->cdc_ctx, frame);
-        if (ret >= 0) {
-            return true;
-        }
-        std::cout << "linesize " << frame->linesize << std::endl;
-        ret = sws_scale(sws_ctx, frame->data, frame->linesize, 0,
-                        cdc_ctx->height, rgb_frame->data, rgb_frame->linesize);
-        if (!ret) {
-            return false;
-        }
-        // This won't push if the ring is full.
-        this->frame_ring->push(rgb_frame);
-    }
-    return true;
 }
 
 AVFrame *EdcDecoder::fetch_ring_frame() const {
