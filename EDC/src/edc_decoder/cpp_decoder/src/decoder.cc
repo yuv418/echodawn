@@ -98,16 +98,17 @@ bool EdcDecoder::DecodeFrameThread() {
     AVFrame *frame;
     SwsContext *sws_ctx;
     AVFrame *rgb_frame;
+    int ret;
 
     std::cout << "height, width: " << this->cdc_ctx->height << " "
               << this->cdc_ctx->width << std::endl;
+
     this->cdc_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
 
     sws_getContext(this->cdc_ctx->width, this->cdc_ctx->height,
                    this->cdc_ctx->pix_fmt, this->cdc_ctx->width,
                    this->cdc_ctx->height, AV_PIX_FMT_RGB24, SWS_BICUBIC, NULL,
                    NULL, NULL);
-    int ret;
 
     frame = av_frame_alloc();
     rgb_frame = av_frame_alloc();
