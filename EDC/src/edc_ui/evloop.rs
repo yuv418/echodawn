@@ -67,6 +67,7 @@ impl EVLoopCtx {
                     unsafe {
                         self.gl.disable(glow::FRAMEBUFFER_SRGB);
                         self.gl.disable(glow::BLEND);
+                        self.gl.enable(glow::TEXTURE_2D)
                     }
 
                     self.window.swap_buffers().unwrap();

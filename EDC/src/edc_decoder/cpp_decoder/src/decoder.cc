@@ -3,8 +3,7 @@
 #include <boost/lockfree/policies.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
 #include <cstdint>
-#include <libavutil/error.h>
-#include <libavutil/frame.h>
+#include <libavutil/pixfmt.h>
 #include <memory>
 
 // https://github.com/joncampbell123/composite-video-simulator/issues/5
@@ -36,7 +35,8 @@ EdcDecoder::EdcDecoder(rust::Str sdp_str, uint32_t width, uint32_t height) {
     this->sdp_str_cpp += sdp_str.data();
     this->inp_ctx = NULL;
 
-    // av_log_set_level(AV_LOG_TRACE);
+    // We won't enable this until we can properly log this with colours and
+    // everything av_log_set_level(AV_LOG_TRACE);
     // av_log_set_callback(av_logging_callback);
 }
 
@@ -105,19 +105,31 @@ bool EdcDecoder::DecodeFrameThread() {
 
     this->cdc_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
 
-    sws_getContext(this->cdc_ctx->width, this->cdc_ctx->height,
-                   this->cdc_ctx->pix_fmt, this->cdc_ctx->width,
-                   this->cdc_ctx->height, AV_PIX_FMT_RGB24, SWS_BICUBIC, NULL,
-                   NULL, NULL);
+    // TODO check all these variables
+    sws_ctx = sws_getContext(this->cdc_ctx->width, this->cdc_ctx->height,
+                             this->cdc_ctx->pix_fmt, this->cdc_ctx->width,
+                             this->cdc_ctx->height, AV_PIX_FMT_RGB24,
+                             SWS_BICUBIC, NULL, NULL, NULL);
 
     frame = av_frame_alloc();
     rgb_frame = av_frame_alloc();
+
+    rgb_frame->format = AV_PIX_FMT_RGB24;
+    rgb_frame->width = this->cdc_ctx->width;
+    rgb_frame->height = this->cdc_ctx->height;
+
+    ret = av_image_alloc(rgb_frame->data, rgb_frame->linesize, rgb_frame->width,
+                         rgb_frame->height, AV_PIX_FMT_RGB24, 1);
+    if (ret < 0) {
+        return false;
+    }
 
     while (true) {
         if (this->decoding_finished) {
             break;
         }
-        if (av_read_frame(this->inp_ctx, &pkt) < 0) {
+        if ((ret = av_read_frame(this->inp_ctx, &pkt)) < 0) {
+            printf("av_read_frame returned %s\n", av_err2str(ret));
             av_packet_unref(&pkt);
             continue;
         }
@@ -127,14 +139,15 @@ bool EdcDecoder::DecodeFrameThread() {
                 pkt.size = 0;
             }
             ret = avcodec_receive_frame(this->cdc_ctx, frame);
-            if (ret >= 0) {
+            if (ret < 0) {
+                printf("avcodec_recieve_frame returned %s\n", av_err2str(ret));
                 continue;
             }
-            std::cout << "linesize " << frame->linesize << std::endl;
             ret = sws_scale(sws_ctx, frame->data, frame->linesize, 0,
                             cdc_ctx->height, rgb_frame->data,
                             rgb_frame->linesize);
-            if (!ret) {
+            if (ret < 0) {
+                printf("sws_scale returned %s\n", av_err2str(ret));
                 continue;
             }
             // This won't push if the ring is full.

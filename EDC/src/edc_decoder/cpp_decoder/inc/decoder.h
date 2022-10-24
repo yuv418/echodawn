@@ -14,7 +14,9 @@ extern "C" {
 #include <libavcodec/codec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
+#include <libavutil/error.h>
 #include <libavutil/frame.h>
+#include <libavutil/imgutils.h>
 #include <libavutil/log.h>
 #include <libavutil/mem.h>
 #include <libavutil/pixfmt.h>

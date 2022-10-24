@@ -195,9 +195,9 @@ impl UIElement for ControlBarUI {
         self.mpv_ctx.handle_user_event(window, ctrl_flow, event)
     }
 
-    fn paint_before_egui(&mut self, _gl: Rc<glow::Context>, window: &Window) {
+    fn paint_before_egui(&mut self, gl: Rc<glow::Context>, window: &Window) {
         self.handle_messages();
-        self.mpv_ctx.paint(window)
+        self.mpv_ctx.paint(gl, window)
     }
 
     fn paint_after_egui(&mut self, _gl: Rc<glow::Context>, _window: &Window) {}

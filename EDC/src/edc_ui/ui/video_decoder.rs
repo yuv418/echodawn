@@ -18,7 +18,7 @@ pub trait VideoDecoder {
     ) -> anyhow::Result<Box<dyn VideoDecoder>>
     where
         Self: Sized;
-    fn paint(&mut self, _window: &Window);
+    fn paint(&mut self, gl: Rc<glow::Context>, _window: &Window);
     fn handle_window_event(&self, _window_id: WindowId, event: WindowEvent);
     fn handle_user_event(&self, window: &Window, _ctrl_flow: &ControlFlow, event: &MPVEvent);
     fn needs_evloop_proxy(&mut self) -> bool;
