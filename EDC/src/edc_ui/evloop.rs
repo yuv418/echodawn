@@ -55,7 +55,7 @@ impl EVLoopCtx {
                     self.ui_ctx.setup_render(ctrl_flow, self.window.window());
                     self.ui_ctx
                         .paint_before_egui(self.gl.clone(), self.window.window());
-                    self.ui_ctx.paint(self.window.window());
+                    self.ui_ctx.paint(self.gl.clone(), self.window.window());
                     self.ui_ctx
                         .paint_after_egui(self.gl.clone(), self.window.window());
 
@@ -67,13 +67,13 @@ impl EVLoopCtx {
                     unsafe {
                         self.gl.disable(glow::FRAMEBUFFER_SRGB);
                         self.gl.disable(glow::BLEND);
-                        self.gl.enable(glow::TEXTURE_2D)
                     }
 
                     self.window.swap_buffers().unwrap();
                 }
                 Event::WindowEvent { window_id, event } => {
                     self.ui_ctx.handle_window_event(
+                        self.gl.clone(),
                         self.window.window(),
                         ctrl_flow,
                         window_id,

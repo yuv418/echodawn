@@ -65,14 +65,14 @@ impl UICtx {
         self.ui_element.paint_after_egui(gl, window);
     }
 
-    pub fn paint(&mut self, window: &Window) {
+    pub fn paint(&mut self, gl: Rc<glow::Context>, window: &Window) {
         if self.ui_element.render_egui() {
             self.egui_ctx.paint(window);
         }
 
         // Replace the element for the next render. We need to pass window
         // to init a new element.
-        if let Some(next_ui) = self.ui_element.next_element(window) {
+        if let Some(next_ui) = self.ui_element.next_element(window, gl) {
             self.ui_element = next_ui;
         }
     }
@@ -80,6 +80,7 @@ impl UICtx {
     // TODO move this stuff into a trait
     pub fn handle_window_event(
         &mut self,
+        gl: Rc<glow::Context>,
         window: &Window,
         ctrl_flow: &mut ControlFlow,
         window_id: WindowId,
@@ -105,7 +106,7 @@ impl UICtx {
         }
 
         self.ui_element
-            .handle_window_event(window, ctrl_flow, window_id, &event);
+            .handle_window_event(gl, window, ctrl_flow, window_id, &event);
     }
 
     // UserEvents are only for MPV at the moment

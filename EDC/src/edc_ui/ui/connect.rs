@@ -75,6 +75,10 @@ impl ConnectUI {
 }
 
 impl UIElement for ConnectUI {
+    fn render_egui(&mut self) -> bool {
+        true
+    }
+
     fn render(&mut self, ui: &mut egui::Ui, _ctrl_flow: &mut ControlFlow) -> InnerResponse<()> {
         // Don't send/recv messages if it's not necessary
         if self.connection_stage != ConnectionStage::Handoff {
@@ -469,11 +473,16 @@ impl UIElement for ConnectUI {
         }
     }
 
-    fn next_element(&mut self, window: &Window) -> Option<Box<dyn UIElement>> {
+    fn next_element(
+        &mut self,
+        window: &Window,
+        gl: Rc<glow::Context>,
+    ) -> Option<Box<dyn UIElement>> {
         if let ConnectionStage::Handoff = self.connection_stage {
             Some(Box::new(ControlBarUI::new(
                 self.client.clone(),
                 self.debug_area.clone(),
+                gl,
                 window,
                 // SDP should never be None here
                 self.sdp
@@ -485,28 +494,6 @@ impl UIElement for ConnectUI {
             None
         }
     }
-
-    fn paint_before_egui(&mut self, gl: Rc<glow::Context>, _window: &glutin::window::Window) {
-        unsafe {
-            gl.clear_color(0.1, 0.1, 0.1, 1.0);
-            gl.clear(glow::COLOR_BUFFER_BIT);
-        }
-    }
-    fn paint_after_egui(&mut self, _gl: Rc<glow::Context>, _window: &glutin::window::Window) {}
-
-    fn handle_window_event(
-        &mut self,
-        _window: &Window,
-        _ctrl_flow: &mut ControlFlow,
-        _window_id: glutin::window::WindowId,
-        _event: &glutin::event::WindowEvent,
-    ) {
-    }
-
-    fn handle_user_event(&self, _window: &Window, _ctrl_flow: &ControlFlow, _event: &MPVEvent) {
-        // Do nothing
-    }
-
     fn needs_evloop_proxy(&mut self) -> bool {
         false
     }
@@ -517,7 +504,26 @@ impl UIElement for ConnectUI {
     ) {
     }
 
-    fn render_egui(&mut self) -> bool {
-        true
+    fn paint_before_egui(&mut self, gl: Rc<glow::Context>, _window: &glutin::window::Window) {
+        unsafe {
+            gl.clear_color(0.1, 0.1, 0.1, 1.0);
+            gl.clear(glow::COLOR_BUFFER_BIT);
+        }
+    }
+
+    fn paint_after_egui(&mut self, _gl: Rc<glow::Context>, _window: &glutin::window::Window) {}
+
+    fn handle_window_event(
+        &mut self,
+        _gl: Rc<glow::Context>,
+        _window: &Window,
+        _ctrl_flow: &mut ControlFlow,
+        _window_id: glutin::window::WindowId,
+        _event: &glutin::event::WindowEvent,
+    ) {
+    }
+
+    fn handle_user_event(&self, _window: &Window, _ctrl_flow: &ControlFlow, _event: &MPVEvent) {
+        // Do nothing
     }
 }

@@ -10,6 +10,7 @@ use super::mpv::MPVEvent;
 
 pub trait VideoDecoder {
     fn new(
+        gl: Rc<glow::Context>,
         window: &Window,
         width: u32,
         height: u32,

@@ -36,6 +36,7 @@ impl ControlBarUI {
     pub fn new(
         client: Rc<RefCell<BlockingEdcsClient>>,
         debug_area: Rc<RefCell<DebugArea>>,
+        gl: Rc<glow::Context>,
         window: &Window,
         sdp: String,
     ) -> Self
@@ -48,6 +49,7 @@ impl ControlBarUI {
             client,
             debug_area,
             mpv_ctx: FFmpegCtx::new(
+                gl,
                 window,
                 inner_size.width,
                 inner_size.height,
@@ -94,12 +96,37 @@ impl UIElement for ControlBarUI {
         }
     }
 
-    fn next_element(&mut self, _window: &Window) -> Option<Box<dyn UIElement>> {
+    fn next_element(
+        &mut self,
+        _window: &Window,
+        _gl: Rc<glow::Context>,
+    ) -> Option<Box<dyn UIElement>> {
         None
     }
 
+    fn needs_evloop_proxy(&mut self) -> bool {
+        self.mpv_ctx.needs_evloop_proxy()
+    }
+
+    fn give_evloop_proxy(
+        &mut self,
+        evloop_proxy: Rc<glutin::event_loop::EventLoopProxy<MPVEvent>>,
+    ) {
+        if self.mpv_ctx.needs_evloop_proxy() {
+            self.mpv_ctx.give_evloop_proxy(evloop_proxy);
+        }
+    }
+
+    fn paint_before_egui(&mut self, gl: Rc<glow::Context>, window: &Window) {
+        self.handle_messages();
+        self.mpv_ctx.paint(gl, window)
+    }
+
+    fn paint_after_egui(&mut self, _gl: Rc<glow::Context>, _window: &Window) {}
+
     fn handle_window_event(
         &mut self,
+        _gl: Rc<glow::Context>,
         _window: &Window,
         _ctrl_flow: &mut glutin::event_loop::ControlFlow,
         _window_id: glutin::window::WindowId,
@@ -193,25 +220,5 @@ impl UIElement for ControlBarUI {
         event: &MPVEvent,
     ) {
         self.mpv_ctx.handle_user_event(window, ctrl_flow, event)
-    }
-
-    fn paint_before_egui(&mut self, gl: Rc<glow::Context>, window: &Window) {
-        self.handle_messages();
-        self.mpv_ctx.paint(gl, window)
-    }
-
-    fn paint_after_egui(&mut self, _gl: Rc<glow::Context>, _window: &Window) {}
-
-    fn needs_evloop_proxy(&mut self) -> bool {
-        self.mpv_ctx.needs_evloop_proxy()
-    }
-
-    fn give_evloop_proxy(
-        &mut self,
-        evloop_proxy: Rc<glutin::event_loop::EventLoopProxy<MPVEvent>>,
-    ) {
-        if self.mpv_ctx.needs_evloop_proxy() {
-            self.mpv_ctx.give_evloop_proxy(evloop_proxy);
-        }
     }
 }
