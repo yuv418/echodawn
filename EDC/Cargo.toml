@@ -37,6 +37,7 @@ platform-dirs = "0.3"
 puffin = "0.13"
 ffmpeg-sys-next = "5.1.1"
 cxx = "1.0"
+nalgebra-glm = "0.17.0"
 
 [build-dependencies]
 prost-build = "0.10"

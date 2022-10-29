@@ -17,16 +17,19 @@ use log::trace;
 use super::{mpv::MPVEvent, video_decoder::VideoDecoder};
 use crate::edc_decoder::decoder_bridge::{self, EdcDecoder};
 
+// I don't actually know OpenGL. The OpenGL calls in this file are pretty much copied from
+// https://gist.github.com/Beyley/eb83d9d5f138dfca36c284b7831333b5.
+
 pub struct FFmpegCtx {
     decoder: UniquePtr<EdcDecoder>,
     width: u32,
     height: u32,
     texture: NativeTexture,
     vao: NativeVertexArray,
-    mvp_matrix: NativeUniformLocation,
-    frame_tex: NativeUniformLocation,
-    vertices: u32,
-    tex_coords: u32,
+    uniform_mvp_matrix: NativeUniformLocation,
+    uniform_frame_tex: NativeUniformLocation,
+    attribs_vertices: u32,
+    attribs_tex_coords: u32,
 }
 
 impl std::fmt::Debug for FFmpegCtx {
@@ -48,7 +51,15 @@ impl VideoDecoder for FFmpegCtx {
     ) -> anyhow::Result<Box<dyn VideoDecoder>> {
         let mut decoder = decoder_bridge::new_edc_decoder(&sdp, width, height);
         trace!("decoder pointer is {:p}", decoder.as_mut().unwrap());
-        let (texture, vao, prgm, vertices, tex_coords, mvp_matrix, frame_tex) = unsafe {
+        let (
+            texture,
+            vao,
+            prgm,
+            attribs_vertices,
+            attribs_tex_coords,
+            uniform_mvp_matrix,
+            uniform_frame_tex,
+        ) = unsafe {
             let vertex_shader_source = r#"
                 #version 150
                 in vec3 vertex;
@@ -76,6 +87,7 @@ impl VideoDecoder for FFmpegCtx {
             ];
             gl.clear_color(0.0, 0.0, 0.0, 0.0);
             gl.enable(glow::TEXTURE_2D);
+            gl.disable(glow::MULTISAMPLE);
             let prgm = gl
                 .create_program()
                 .expect("Failed to create ffmpeg GL program");
@@ -96,40 +108,42 @@ impl VideoDecoder for FFmpegCtx {
             if !gl.get_program_link_status(prgm) {
                 panic!("{}", gl.get_program_info_log(prgm));
             }
-            for shader in shaders {
+            /*for shader in shaders {
                 gl.detach_shader(prgm, shader);
                 gl.delete_shader(shader);
-            }
+            }*/
+            let uniform_mvp_matrix = gl
+                .get_uniform_location(prgm, "mvpMatrix")
+                .expect("Failed to get mvpMatrix loc");
+            let uniform_frame_tex = gl
+                .get_uniform_location(prgm, "frameTex")
+                .expect("Failed to get frameTex loc");
+            let attribs_vertices = gl.get_attrib_location(prgm, "vertex").unwrap();
+            let attribs_tex_coords = gl.get_attrib_location(prgm, "texCoord0").unwrap();
+
             gl.use_program(Some(prgm));
 
             let vao = gl.create_vertex_array().expect("failed to create vao");
             gl.bind_vertex_array(Some(vao));
+
             let buffer = gl.create_buffer().expect("failed to create gl buffer");
             gl.bind_buffer(glow::ARRAY_BUFFER, Some(buffer));
 
             // quad buffer
-            let mvp_matrix = gl
-                .get_uniform_location(prgm, "mvpMatrix")
-                .expect("Failed to get mvpMatrix loc");
-            let frame_tex = gl
-                .get_uniform_location(prgm, "frameTex")
-                .expect("Failed to get frameTex loc");
-            let tex_coords = gl.get_attrib_location(prgm, "texCoord0").unwrap();
-            let vertices = gl.get_attrib_location(prgm, "vertex").unwrap();
-
-            let quad = [
-                -1.0, 1.0, 0.0, 0.0, -1.0, -1.0, 0.0, 1.0, 1.0, -1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0,
-                1.0, 0.0,
+            let quad2 = [
+                -1.0f32, 1.0f32, 0.0f32, 0.0f32, 0.0f32, -1.0f32, -1.0f32, 0.0f32, 0.0f32, 1.0f32,
+                1.0f32, -1.0f32, 0.0f32, 1.0f32, 1.0f32, 1.0f32, 1.0f32, 0.0f32, 1.0f32, 0.0f32,
             ];
+            trace!("size of quad is {}", quad2.len());
             let quad_u8 = std::slice::from_raw_parts(
-                quad.as_ptr() as *const u8,
-                quad.len() * std::mem::size_of::<f32>(),
+                quad2.as_ptr() as *const u8,
+                quad2.len() * core::mem::size_of::<f32>(),
             );
             gl.buffer_data_u8_slice(glow::ARRAY_BUFFER, &quad_u8, glow::STATIC_DRAW);
-            gl.vertex_attrib_pointer_f32(vertices, 2, glow::FLOAT, false, 20, 0);
-            gl.enable_vertex_attrib_array(vertices);
-            gl.vertex_attrib_pointer_f32(tex_coords, 2, glow::FLOAT, false, 20, 12);
-            gl.enable_vertex_attrib_array(tex_coords);
+            gl.vertex_attrib_pointer_f32(attribs_vertices, 3, glow::FLOAT, false, 20, 0);
+            gl.enable_vertex_attrib_array(attribs_vertices);
+            gl.vertex_attrib_pointer_f32(attribs_tex_coords, 2, glow::FLOAT, false, 20, 12);
+            gl.enable_vertex_attrib_array(attribs_tex_coords);
 
             // different buffer...
             let elem_buf = gl.create_buffer().expect("Failed to make elbuf");
@@ -168,16 +182,23 @@ impl VideoDecoder for FFmpegCtx {
                 glow::UNSIGNED_BYTE,
                 None,
             );
-            gl.uniform_1_i32(Some(&frame_tex), 0);
+            gl.uniform_1_i32(Some(&uniform_frame_tex), 0);
+
+            let mvp = nalgebra_glm::ortho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
             gl.uniform_matrix_4_f32_slice(
-                Some(&mvp_matrix),
+                Some(&uniform_mvp_matrix),
                 false,
-                &[1.0, 1.0, -1.0, 1.0, -1.0, 1.0],
+                nalgebra_glm::value_ptr(&mvp),
             );
 
-            // gl.uniform_1_i32(location, x)
             (
-                texture, vao, prgm, vertices, tex_coords, mvp_matrix, frame_tex,
+                texture,
+                vao,
+                prgm,
+                attribs_vertices,
+                attribs_tex_coords,
+                uniform_mvp_matrix,
+                uniform_frame_tex,
             )
         };
 
@@ -187,10 +208,10 @@ impl VideoDecoder for FFmpegCtx {
             height,
             texture,
             vao,
-            vertices,
-            tex_coords,
-            mvp_matrix,
-            frame_tex,
+            attribs_vertices,
+            attribs_tex_coords,
+            uniform_mvp_matrix,
+            uniform_frame_tex,
         }))
     }
 
@@ -209,10 +230,12 @@ impl VideoDecoder for FFmpegCtx {
                 32,
             );
             let pixels_slice = std::slice::from_raw_parts((*frame).data[0], frame_length as usize);
-            gl.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
+            /*l.pixel_store_i32(glow::UNPACK_ALIGNMENT, 1);
             gl.pixel_store_i32(glow::UNPACK_ROW_LENGTH, 0);
             gl.pixel_store_i32(glow::UNPACK_SKIP_PIXELS, 0);
-            gl.pixel_store_i32(glow::UNPACK_SKIP_ROWS, 0);
+            gl.pixel_store_i32(glow::UNPACK_SKIP_ROWS, 0);*/
+            gl.enable(glow::TEXTURE_2D);
+            gl.disable(glow::MULTISAMPLE);
             gl.tex_sub_image_2d(
                 glow::TEXTURE_2D,
                 0,
@@ -224,7 +247,8 @@ impl VideoDecoder for FFmpegCtx {
                 glow::UNSIGNED_BYTE,
                 glow::PixelUnpackData::Slice(pixels_slice),
             );
-            gl.clear(glow::COLOR_BUFFER_BIT);
+            //gl.clear(glow::COLOR_BUFFER_BIT);
+            // the problem is probably on the next line or the next next line.
             gl.bind_texture(glow::TEXTURE_2D, Some(self.texture));
             gl.bind_vertex_array(Some(self.vao));
             gl.draw_elements(glow::TRIANGLES, 6, glow::UNSIGNED_BYTE, 0);

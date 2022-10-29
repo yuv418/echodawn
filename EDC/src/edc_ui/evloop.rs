@@ -64,10 +64,10 @@ impl EVLoopCtx {
                     }
 
                     // This is required because of MPV/egui colour space problems. Perhaps put this in UICtx::paint?
-                    unsafe {
+                    /*unsafe {
                         self.gl.disable(glow::FRAMEBUFFER_SRGB);
                         self.gl.disable(glow::BLEND);
-                    }
+                    }*/
 
                     self.window.swap_buffers().unwrap();
                 }
