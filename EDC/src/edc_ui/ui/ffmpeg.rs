@@ -175,8 +175,8 @@ impl VideoDecoder for FFmpegCtx {
                 glow::TEXTURE_2D,
                 0,
                 glow::RGB as i32,
-                width as i32,
-                height as i32,
+                1920 as i32,
+                1080 as i32,
                 0,
                 glow::RGB,
                 glow::UNSIGNED_BYTE,
@@ -234,25 +234,25 @@ impl VideoDecoder for FFmpegCtx {
             gl.pixel_store_i32(glow::UNPACK_ROW_LENGTH, 0);
             gl.pixel_store_i32(glow::UNPACK_SKIP_PIXELS, 0);
             gl.pixel_store_i32(glow::UNPACK_SKIP_ROWS, 0);*/
-            gl.enable(glow::TEXTURE_2D);
-            gl.disable(glow::MULTISAMPLE);
             gl.tex_sub_image_2d(
                 glow::TEXTURE_2D,
                 0,
                 0,
                 0,
-                self.width as i32,
-                self.height as i32,
+                (*frame).width as i32,
+                (*frame).height as i32,
                 glow::RGB,
                 glow::UNSIGNED_BYTE,
                 glow::PixelUnpackData::Slice(pixels_slice),
             );
-            //gl.clear(glow::COLOR_BUFFER_BIT);
+            gl.clear(glow::COLOR_BUFFER_BIT);
             // the problem is probably on the next line or the next next line.
             gl.bind_texture(glow::TEXTURE_2D, Some(self.texture));
             gl.bind_vertex_array(Some(self.vao));
             gl.draw_elements(glow::TRIANGLES, 6, glow::UNSIGNED_BYTE, 0);
             gl.bind_vertex_array(None);
+            libc::free((*frame).data[0] as *mut libc::c_void);
+            libc::free(frame as *mut libc::c_void);
         }
     }
 

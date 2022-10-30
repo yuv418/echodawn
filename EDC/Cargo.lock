@@ -740,6 +740,7 @@ dependencies = [
  "glutin",
  "input-linux-sys",
  "lazy_static",
+ "libc",
  "libmpv-sys",
  "log",
  "nalgebra-glm",

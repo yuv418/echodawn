@@ -12,13 +12,16 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavcodec/codec.h>
+#include <libavcodec/packet.h>
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
+#include <libavutil/dict.h>
 #include <libavutil/error.h>
 #include <libavutil/frame.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/log.h>
 #include <libavutil/mem.h>
+#include <libavutil/opt.h>
 #include <libavutil/pixfmt.h>
 #include <libswscale/swscale.h>
 }
@@ -37,7 +40,7 @@ class EdcDecoder {
     void start_decoding();
 
   private:
-    boost::lockfree::spsc_queue<AVFrame *, boost::lockfree::capacity<2>>
+    boost::lockfree::spsc_queue<AVFrame *, boost::lockfree::capacity<1000>>
         *frame_ring;
     bool decoding_finished;
     std::string sdp_str_cpp;
