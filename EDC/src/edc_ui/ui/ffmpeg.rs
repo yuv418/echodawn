@@ -30,6 +30,7 @@ pub struct FFmpegCtx {
     uniform_frame_tex: NativeUniformLocation,
     attribs_vertices: u32,
     attribs_tex_coords: u32,
+    first_paint: bool,
 }
 
 impl std::fmt::Debug for FFmpegCtx {
@@ -171,6 +172,8 @@ impl VideoDecoder for FFmpegCtx {
                 glow::TEXTURE_MIN_FILTER,
                 glow::LINEAR as i32,
             );
+            // NOTE this is a hack. We need to find the actual width/height which will either require heavy restructuring of this file or to modify the EDCSProtocol,
+            // which will be done at some point.
             gl.tex_image_2d(
                 glow::TEXTURE_2D,
                 0,
@@ -212,17 +215,21 @@ impl VideoDecoder for FFmpegCtx {
             attribs_tex_coords,
             uniform_mvp_matrix,
             uniform_frame_tex,
+            first_paint: false,
         }))
     }
 
     fn paint(&mut self, gl: Rc<glow::Context>, window: &Window) {
-        let frame = self.decoder.fetch_ring_frame();
-        if frame.is_null() {
-            return;
+        let mut frame = self.decoder.fetch_ring_frame();
+        while frame.is_null() {
+            frame = self.decoder.fetch_ring_frame();
         }
         unsafe {
             // I love overriding the Rust type system /s
             let frame: *mut AVFrame = std::mem::transmute(frame);
+            if self.first_paint {
+                self.first_paint = false;
+            }
             let frame_length = ffmpeg_sys_next::av_image_get_buffer_size(
                 ffmpeg_sys_next::AVPixelFormat::AV_PIX_FMT_RGB24,
                 (*frame).width,

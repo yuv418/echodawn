@@ -40,7 +40,7 @@ class EdcDecoder {
     void start_decoding();
 
   private:
-    boost::lockfree::spsc_queue<AVFrame *, boost::lockfree::capacity<1000>>
+    boost::lockfree::spsc_queue<AVFrame *, boost::lockfree::capacity<2>>
         *frame_ring;
     bool decoding_finished;
     std::string sdp_str_cpp;

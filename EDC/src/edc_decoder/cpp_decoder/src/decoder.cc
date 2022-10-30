@@ -64,7 +64,7 @@ namespace edc_decoder {
 EdcDecoder::EdcDecoder(rust::Str sdp_str, uint32_t width, uint32_t height) {
     this->frame_ring =
         new boost::lockfree::spsc_queue<AVFrame *,
-                                        boost::lockfree::capacity<1000>>();
+                                        boost::lockfree::capacity<2>>();
 
     this->sdp_str_cpp = "data:appliation/sdp;charset=UTF-8,";
     this->sdp_str_cpp += sdp_str.data();
@@ -88,14 +88,16 @@ void EdcDecoder::start_decoding() {
     std::cout << "SDP String: " << sdp_str_cpp.c_str() << std::endl;
 
     AVDictionary *d = NULL;
-    av_dict_set(&d, "fflags", "nobuffer", 0);
-    av_dict_set(&d, "probesize", "32", 0);
-    av_dict_set(&d, "analyzeduration", "0", 0);
+    /*av_dict_set(&d, "fflags", "nobuffer", 0);
     av_dict_set(&d, "max_delay", "2", 0);
     av_dict_set(&d, "flags", "low_delay", 0);
     av_dict_set(&d, "framedrop", "1", 0);
     av_dict_set(&d, "strict", "experimental", 0);
-    av_dict_set(&d, "vf", "setpts=0", 0);
+    av_dict_set(&d, "vf", "setpts=0", 0);*/
+    av_dict_set(&d, "reorder_queue_size", "8000", 0);
+    av_dict_set(&d, "max_delay", "100000", 0);
+    av_dict_set(&d, "probesize", "32", 0);
+    av_dict_set(&d, "analyzeduration", "0", 0);
     ret = avformat_open_input(&this->inp_ctx, this->sdp_str_cpp.c_str(), NULL,
                               &d);
 
@@ -126,7 +128,7 @@ void EdcDecoder::start_decoding() {
     }
     this->cdc_ctx->flags = AV_CODEC_FLAG_LOW_DELAY;
     this->cdc_ctx->thread_count = 1;
-    av_opt_set(this->cdc_ctx->priv_data, "tune", "zerolatency", 0);
+    // av_opt_set(this->cdc_ctx->priv_data, "tune", "zerolatency", 0);
     av_opt_set(this->cdc_ctx->priv_data, "profile", "baseline", 0);
 
     const AVCodec *decodeCodec;
@@ -173,17 +175,18 @@ bool EdcDecoder::DecodeFrameThread() {
             continue;
         }
         ret = avcodec_send_packet(this->cdc_ctx, &pkt);
-        if (ret > 0 || ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-            if (ret >= 0) {
-                pkt.size = 0;
-            }
+        if (ret >= 0) {
             ret = avcodec_receive_frame(this->cdc_ctx, frame);
-            printf("avcodec_recieve_frame returned %s\n", av_err2str(ret));
-            if (ret < 0) {
+            if (ret == AVERROR(EAGAIN)) {
                 printf("avcodec_recieve_frame returned %s\n", av_err2str(ret));
                 continue;
+            } else if (ret < 0) {
+                printf("avcodec_recieve_frame returned %s\n", av_err2str(ret));
+                return false;
             }
+            av_packet_unref(&pkt);
 
+            // I know this is inefficient lol
             AVFrame *rgb_frame = av_frame_alloc();
 
             rgb_frame->format = AV_PIX_FMT_RGB24;
@@ -211,7 +214,6 @@ bool EdcDecoder::DecodeFrameThread() {
 AVFrame *EdcDecoder::fetch_ring_frame() const {
     AVFrame *poppedFrame;
     if (this->frame_ring->pop(poppedFrame)) {
-        printf("poppedFrame pointer %p\n", poppedFrame);
         return poppedFrame;
     }
     return NULL;
