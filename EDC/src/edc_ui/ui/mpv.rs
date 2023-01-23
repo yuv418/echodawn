@@ -78,13 +78,15 @@ impl MPVCtx {
                 mpv_request_log_messages(mpv, loglv.as_ptr());
             }
 
-            Self::mpv_set_opt(mpv, "profile", "low-latency");
-            Self::mpv_set_opt(mpv, "rtsp-transport", "lavc");
-            Self::mpv_set_opt(mpv, "video-latency-hacks", "yes");
-            Self::mpv_set_opt(mpv, "drop-buffers", "yes");
-            Self::mpv_set_opt(mpv, "vd-lavc-threads", "1");
-            Self::mpv_set_opt(mpv, "no-cache", "yes");
+            // Self::mpv_set_opt(mpv, "profile", "low-latency");
+            Self::mpv_set_opt(mpv, "rtsp-transport", "lavf");
+            Self::mpv_set_opt(mpv, "cache", "yes");
+            // Self::mpv_set_opt(mpv, "video-latency-hacks", "yes");
+            // Self::mpv_set_opt(mpv, "drop-buffers", "yes");
+            // Self::mpv_set_opt(mpv, "vd-lavc-threads", "yes");
+            // Self::mpv_set_opt(mpv, "no-cache", "yes");
             Self::mpv_set_opt(mpv, "untimed", "yes");
+            // Self::mpv_set_opt(mpv, "demuxer-readahead-packets", "300");
             Self::mpv_set_opt(mpv, "hwdec", "yes");
 
             assert!(mpv_initialize(mpv) == 0, "MPV failed to initialise!");

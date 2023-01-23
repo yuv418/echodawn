@@ -8,14 +8,14 @@ use crate::edcs_server::edcs_proto::{
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::ffi::CStr;
-use std::net::SocketAddr;
+use std::net::Ipv4Addr;
 use std::os::raw::{c_char, c_void};
 
 pub struct EdssError(pub edss_unsafe::EDSS_STATUS);
 
 #[derive(Debug)]
 pub struct EdssAdapter {
-    pub ip: SocketAddr,
+    pub ip: Ipv4Addr,
     pub port: u16,
     pub bitrate: u32,
     pub framerate: u32,
@@ -117,7 +117,7 @@ impl EdssAdapter {
 
     pub fn new(
         mut plugin_name: String,
-        ip: SocketAddr,
+        ip: Ipv4Addr,
         port: u16,
         bitrate: u32,
         framerate: u32,

@@ -61,13 +61,12 @@ void av_logging_callback(void *ptr, int lvl, const char *fmt, va_list vargs) {
 // TODO better exception handling
 namespace edc_decoder {
 
-EdcDecoder::EdcDecoder(rust::Str sdp_str, uint32_t width, uint32_t height) {
+EdcDecoder::EdcDecoder(rust::Str server_url, uint32_t width, uint32_t height) {
     this->frame_ring =
         new boost::lockfree::spsc_queue<AVFrame *,
                                         boost::lockfree::capacity<2>>();
 
-    this->sdp_str_cpp = "data:appliation/sdp;charset=UTF-8,";
-    this->sdp_str_cpp += sdp_str.data();
+    this->server_url_cpp = server_url.data();
     this->inp_ctx = NULL;
 
     // We won't enable this until we can properly log this with colours and
@@ -85,23 +84,26 @@ void EdcDecoder::start_decoding() {
         throw std::runtime_error("avformat_network_init failed");
     }
 
-    std::cout << "SDP String: " << sdp_str_cpp.c_str() << std::endl;
+    std::cout << "SDP String: " << server_url_cpp.c_str() << std::endl;
 
     AVDictionary *d = NULL;
-    /*av_dict_set(&d, "fflags", "nobuffer", 0);
-    av_dict_set(&d, "max_delay", "2", 0);
     av_dict_set(&d, "flags", "low_delay", 0);
+    av_dict_set(&d, "re", "1", 0);
     av_dict_set(&d, "framedrop", "1", 0);
+    av_dict_set(&d, "infinite_buffer", "1", 0);
     av_dict_set(&d, "strict", "experimental", 0);
-    av_dict_set(&d, "vf", "setpts=0", 0);*/
-    av_dict_set(&d, "reorder_queue_size", "8000", 0);
-    av_dict_set(&d, "max_delay", "100000", 0);
-    av_dict_set(&d, "probesize", "32", 0);
-    av_dict_set(&d, "analyzeduration", "0", 0);
-    ret = avformat_open_input(&this->inp_ctx, this->sdp_str_cpp.c_str(), NULL,
-                              &d);
+    av_dict_set(&d, "avioflags", "direct", 0);
+    // av_dict_set(&d, "max_delay", "2", 0);
+    // av_dict_set(&d, "vf", "setpts=0", 0);
+    // av_dict_set(&d, "reorder_queue_size", "8000", 0);
+    // av_dict_set(&d, "max_delay", "100000", 0);
+    // av_dict_set(&d, "probesize", "32", 0);
+    // av_dict_set(&d, "analyzeduration", "0", 0);
+    ret = avformat_open_input(&this->inp_ctx, this->server_url_cpp.c_str(),
+                              NULL, &d);
 
-    this->inp_ctx->flags = AVFMT_FLAG_NOBUFFER;
+    this->inp_ctx->flags = AVFMT_FLAG_NOBUFFER | AVFMT_FLAG_FLUSH_PACKETS |
+                           AVFMT_FLAG_DISCARD_CORRUPT;
 
     std::cout << "Input format is " << this->inp_ctx->iformat << std::endl;
     if (ret) {
@@ -158,12 +160,6 @@ bool EdcDecoder::DecodeFrameThread() {
     this->cdc_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
     frame = av_frame_alloc();
 
-    // TODO check all these variables
-    sws_ctx = sws_getContext(this->cdc_ctx->width, this->cdc_ctx->height,
-                             this->cdc_ctx->pix_fmt, this->cdc_ctx->width,
-                             this->cdc_ctx->height, AV_PIX_FMT_RGB24,
-                             SWS_BICUBIC, NULL, NULL, NULL);
-
     int i = 0;
     while (true) {
         if (this->decoding_finished) {
@@ -184,6 +180,18 @@ bool EdcDecoder::DecodeFrameThread() {
                 printf("avcodec_recieve_frame returned %s\n", av_err2str(ret));
                 return false;
             }
+
+            // TODO check all these variables
+            if (!sws_ctx) {
+                // Goes here as the cdcctx might not have appropriate values
+                // until a frame is actually decoded.
+                sws_ctx =
+                    sws_getContext(this->cdc_ctx->width, this->cdc_ctx->height,
+                                   this->cdc_ctx->pix_fmt, this->cdc_ctx->width,
+                                   this->cdc_ctx->height, AV_PIX_FMT_RGB24,
+                                   SWS_BICUBIC, NULL, NULL, NULL);
+            }
+
             av_packet_unref(&pkt);
 
             // I know this is inefficient lol
@@ -229,9 +237,9 @@ EdcDecoder::~EdcDecoder() {
     // av_freep(&this->cdc_ctx);
 }
 
-std::unique_ptr<EdcDecoder> new_edc_decoder(rust::Str sdp, uint32_t width,
-                                            uint32_t height) {
-    auto ptr = std::make_unique<EdcDecoder>(sdp, width, height);
+std::unique_ptr<EdcDecoder> new_edc_decoder(rust::Str server_url,
+                                            uint32_t width, uint32_t height) {
+    auto ptr = std::make_unique<EdcDecoder>(server_url, width, height);
     std::cout << "The pointer to EdcDecoder from C++ is equal to " << ptr.get()
               << std::endl;
     return ptr;

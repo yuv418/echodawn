@@ -32,7 +32,7 @@ using AVFramePublic = AVFrame;
 
 class EdcDecoder {
   public:
-    EdcDecoder(rust::Str sdp, uint32_t width, uint32_t height);
+    EdcDecoder(rust::Str server_url, uint32_t width, uint32_t height);
     ~EdcDecoder();
     // For now. Later, we will reimplement AVFrame or something since I do not
     // know how to return an AVFrame from this method and access it in Rust.
@@ -43,7 +43,7 @@ class EdcDecoder {
     boost::lockfree::spsc_queue<AVFrame *, boost::lockfree::capacity<2>>
         *frame_ring;
     bool decoding_finished;
-    std::string sdp_str_cpp;
+    std::string server_url_cpp;
     std::thread *decode_thread;
     AVFormatContext *inp_ctx;
     AVCodecContext *cdc_ctx;
@@ -51,6 +51,6 @@ class EdcDecoder {
     bool DecodeFrameThread();
 };
 
-std::unique_ptr<EdcDecoder> new_edc_decoder(rust::Str sdp, uint32_t width,
-                                            uint32_t height);
+std::unique_ptr<EdcDecoder> new_edc_decoder(rust::Str server_url,
+                                            uint32_t width, uint32_t height);
 } // namespace edc_decoder

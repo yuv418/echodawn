@@ -15,7 +15,7 @@ pub trait VideoDecoder {
         width: u32,
         height: u32,
         debug: bool,
-        sdp: String,
+        server_url: String,
     ) -> anyhow::Result<Box<dyn VideoDecoder>>
     where
         Self: Sized;

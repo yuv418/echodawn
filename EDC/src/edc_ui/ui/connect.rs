@@ -489,6 +489,11 @@ impl UIElement for ConnectUI {
                     .as_ref()
                     .expect("No SDP set despite ConnectionStage::Handoff set")
                     .to_owned(),
+                self.connection_config
+                    .as_ref()
+                    .unwrap()
+                    .ui_config
+                    .host_cursor,
             )))
         } else {
             None

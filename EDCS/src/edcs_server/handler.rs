@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::net::Ipv4Addr;
 use std::sync::Arc;
 
 use log::{debug, info};
@@ -20,7 +20,7 @@ impl EdcsHandler {
         &mut self,
         cfg: Arc<config::EdcsConfig>,
         msg: EdcsMessage,
-        addr: SocketAddr,
+        addr: Ipv4Addr,
         // Some of the events (eg. keyboard/mouse) won't return a response since we don't want to waste time sending back thousands of "Ok" messages
         // In the future if we want to find failed K/M events we can create a separate request for that
     ) -> anyhow::Result<Option<EdcsResponse>> {

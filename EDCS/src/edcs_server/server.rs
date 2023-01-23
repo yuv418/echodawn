@@ -20,6 +20,7 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::net::SocketAddr;
 use tokio::io::AsyncReadExt;
 use tokio::io::WriteHalf;
 use tokio::io::{split, AsyncWriteExt};
@@ -80,6 +81,11 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
     info!("Server bound and main loop starting");
     loop {
         let (stream, peer_addr) = listener.accept().await?;
+        let server_addr = match stream.local_addr()? {
+            SocketAddr::V4(v4) => v4,
+            _ => panic!("IPV6 is not supported at the moment"),
+        }.ip().clone();
+        info!("local addr is {}", server_addr);
 
         info!("Received connection from peer with address {}", peer_addr);
 
@@ -116,7 +122,7 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                     let edcs_response = {
                         let mut handler_unlock = handler_copy.lock();
                         handler_unlock
-                            .handle_message(Arc::clone(&cfg_copy), edcs_message, peer_addr)
+                            .handle_message(Arc::clone(&cfg_copy), edcs_message, server_addr)
                             .with_context(|| "Failed to get EDCS response")
                             .expect("Failed to get EDCS resp")
                     };
@@ -145,7 +151,7 @@ pub async fn start(config_file_path: PathBuf) -> anyhow::Result<()> {
                             message_type: EdcsMessageType::CloseStream as i32,
                             payload: None,
                         },
-                        peer_addr,
+                        server_addr,
                     );
                 }
             }

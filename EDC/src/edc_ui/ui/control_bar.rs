@@ -1,6 +1,7 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, pin::Pin, rc::Rc, task::Poll};
 
 use egui::RichText;
+use futures::Future;
 use glutin::{
     dpi::PhysicalPosition,
     event::{ElementState, VirtualKeyCode, WindowEvent},
@@ -31,6 +32,7 @@ pub struct ControlBarUI {
     mpv_ctx: Box<dyn VideoDecoder>,
     stream_started: bool,
     prev_pos: PhysicalPosition<f64>,
+    host_cursor: bool,
 }
 impl ControlBarUI {
     pub fn new(
@@ -38,12 +40,12 @@ impl ControlBarUI {
         debug_area: Rc<RefCell<DebugArea>>,
         gl: Rc<glow::Context>,
         window: &Window,
-        sdp: String,
+        server_url: String,
+        host_cursor: bool,
     ) -> Self
     where
         Self: Sized,
     {
-        // window.set_cursor_visible(false);
         let inner_size = window.inner_size();
         Self {
             client,
@@ -55,10 +57,11 @@ impl ControlBarUI {
                 inner_size.height,
                 // TODO make this variable
                 true,
-                sdp,
+                server_url,
             )
             .expect("Failed to start MPV"),
             stream_started: false,
+            host_cursor,
             prev_pos: PhysicalPosition { x: 0.0, y: 0.0 },
         }
     }
@@ -84,6 +87,7 @@ impl UIElement for ControlBarUI {
 
     fn handle_messages(&mut self) {
         let needs_evloop_proxy = self.needs_evloop_proxy();
+
         if !self.stream_started && !needs_evloop_proxy {
             info!("Starting video stream");
             self.client
@@ -91,8 +95,24 @@ impl UIElement for ControlBarUI {
                 .push
                 .send(ChannelEdcsRequest::StartStream)
                 .expect("Failed to start video stream");
-            self.stream_started = true;
-            self.mpv_ctx.start_decoding();
+        }
+        if !self.stream_started {
+            if let Ok(msg) = self.client.borrow_mut().recv.recv() {
+                println!("Received msg {:?}", msg);
+                match msg {
+                    crate::edcs_client::blocking_client::ChannelEdcsResponse::EdcsResponse(Ok(
+                        resp,
+                    )) => match resp.payload {
+                        None => {
+                            info!("Starting decoding...");
+                            self.stream_started = true;
+                            self.mpv_ctx.start_decoding();
+                        }
+                        _ => {}
+                    },
+                    _ => {}
+                }
+            }
         }
     }
 
@@ -119,6 +139,9 @@ impl UIElement for ControlBarUI {
 
     fn paint_before_egui(&mut self, gl: Rc<glow::Context>, window: &Window) {
         self.handle_messages();
+        if !self.host_cursor {
+            window.set_cursor_visible(false);
+        }
         self.mpv_ctx.paint(gl, window)
     }
 

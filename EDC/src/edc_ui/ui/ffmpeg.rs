@@ -48,9 +48,9 @@ impl VideoDecoder for FFmpegCtx {
         width: u32,
         height: u32,
         debug: bool,
-        sdp: String,
+        server_url: String,
     ) -> anyhow::Result<Box<dyn VideoDecoder>> {
-        let mut decoder = decoder_bridge::new_edc_decoder(&sdp, width, height);
+        let mut decoder = decoder_bridge::new_edc_decoder(&server_url, width, height);
         trace!("decoder pointer is {:p}", decoder.as_mut().unwrap());
         let (
             texture,
